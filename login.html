@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#E8171A">
+    <title>Sign in · CEPALCO Collection Monitoring</title>
+    <link rel="stylesheet" href="theme.css">
+    <script src="auth.js"></script>
+</head>
+<body>
+    <div class="login">
+        <aside class="login-art" aria-hidden="true">
+            <div class="txt">
+                <h2>Collection Monitoring Update System</h2>
+                <p>District Services Department - Collection Section</p>
+            </div>
+        </aside>
+        <main class="login-form">
+            <form id="f" class="login-box">
+                <img class="logo" src="cepalco-logo.png" alt="CEPALCO – Cagayan Electric Power &amp; Light Company, Inc.">
+                <h1>Sign in</h1>
+                <p class="sub">Use your CEPALCO monitoring account</p>
+                <label>Username
+                    <input id="u" autocomplete="username" required></label>
+                <label>Password
+                    <input id="p" type="password" autocomplete="current-password" required></label>
+                <p id="e" class="err" hidden>Wrong username or password.</p>
+                <button class="btn pri">Sign in</button>
+                <div class="or">or</div>
+                <button type="button" id="g" class="btn">Continue as guest</button>
+                <p class="sub" style="text-align:center;margin:16px 0 0">Guest access is view-only and only works if the administrator has switched it on.</p>
+            </form>
+            <form id="pf" class="login-box" hidden>
+                <img class="logo" src="cepalco-logo.png" alt="CEPALCO">
+                <h1>Choose a new password</h1>
+                <p class="sub">Your current password is too easy to guess (for example the default <b>admin</b>). Use at least 8 characters.</p>
+                <label>Current password
+                    <input id="po" type="password" autocomplete="current-password" required></label>
+                <label>New password
+                    <input id="pn" type="password" autocomplete="new-password" minlength="8" required></label>
+                <label>Repeat new password
+                    <input id="pr" type="password" autocomplete="new-password" minlength="8" required></label>
+                <p id="pe" class="err" hidden></p>
+                <button class="btn pri">Save and continue</button>
+            </form>
+        </main>
+    </div>
+<script>
+const nxt=(()=>{const n=new URLSearchParams(location.search).get('next')||'';return /^[\w.-]+\.html(#\w+)?$/.test(n)?n:'index.html'})();
+const E=document.getElementById('e');
+document.getElementById('f').onsubmit=async e=>{e.preventDefault();E.hidden=true;const r=await Auth.login(document.getElementById('u').value,document.getElementById('p').value);
+if(r===true){if(Auth.ses().must){mustChange(document.getElementById('p').value)}else location.href=nxt}else{E.textContent=r;E.hidden=false}};
+function mustChange(old){document.getElementById('f').hidden=true;document.getElementById('pf').hidden=false;if(old)document.getElementById('po').value=old}
+if(new URLSearchParams(location.search).get('must')&&Auth.ses()&&Auth.ses().must)mustChange('');
+document.getElementById('pf').onsubmit=async e=>{e.preventDefault();const P=document.getElementById('pe');P.hidden=true;
+if(document.getElementById('pn').value!==document.getElementById('pr').value){P.textContent='The two new passwords are not the same.';P.hidden=false;return}
+const r=await Auth.chpw(document.getElementById('po').value,document.getElementById('pn').value);if(r===true)location.href=nxt;else{P.textContent=r;P.hidden=false}};
+document.getElementById('g').onclick=async()=>{E.hidden=true;const r=await Auth.guest();if(r===true)location.href='index.html';else{E.textContent=r;E.hidden=false}};
+</script>
+</body>
+</html>

@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#E8171A">
+<title>Delinquent Accounts Mapping - CEPALCO</title>
+<link rel="stylesheet" href="theme.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<script src="auth.js" data-guard="dmap"></script>
+<style>
+.bar{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.mg{display:grid;grid-template-columns:minmax(0,1fr) 380px;gap:14px;align-items:start}
+@media(max-width:980px){.mg{grid-template-columns:1fr}}
+#map{height:calc(100vh - 380px);min-height:480px;border-radius:12px;border:1px solid var(--line);background:#e9eef2;z-index:0}
+#lst{max-height:calc(100vh - 380px);min-height:480px;overflow:auto;background:#fff;border:1px solid var(--line);border-radius:12px}
+@media(max-width:980px){#lst{max-height:60vh;min-height:240px}}
+.it{padding:10px 12px;border-bottom:1px solid #eee;cursor:pointer}.it:hover{background:#fff7f7}
+.mb{display:inline-block;min-width:22px;text-align:center;padding:1px 7px;border-radius:999px;color:#fff;font-size:11px;font-weight:700}
+.lgd{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--mute)}.lgd i{width:10px;height:10px;border-radius:50%;display:inline-block;margin-right:5px}
+#pl{background:#FFF1D1;border:1px solid #E7C56A;border-radius:10px;padding:10px 14px}
+#um{background:#fff;border:1px solid var(--line);border-left:4px solid var(--red);border-radius:10px;padding:10px 14px;font-size:12.5px}
+.pp{min-width:210px;font-size:13px}.pp .sub{margin-top:2px}
+</style>
+</head>
+<body>
+<header class="app-header no-print"><div class="wrap">
+  <a class="brand" href="index.html"><img src="cepalco-logo.png" alt="CEPALCO"></a>
+  <div class="app-title"><h1>Delinquent Accounts Mapping</h1><p>District Services Department - Collection Section</p></div>
+  <div class="app-user"><div class="u1"><span id="authSlot"></span></div><div class="u2"><span id="st">Loading…</span></div></div>
+</div></header>
+<nav class="app-nav no-print"><div class="wrap">
+  <a class="navtab" href="index.html" data-feature="collections">Collections</a>
+  <a class="navtab" href="index.html#acc" data-feature="accounts">Accounts</a>
+  <a class="navtab" href="index.html#con" data-feature="contacts">Contact Directory</a>
+  <a class="navtab" href="report.html" data-feature="report">Generate report</a>
+  <a class="navtab" href="dnjo.html" data-feature="dnjo">DN / Job Order</a>
+  <a class="navtab on" href="dmap.html" data-feature="dmap">Delinquent Accounts Mapping</a>
+  <a class="navtab" href="smsgen.html" data-feature="gen">EMAIL/SMS Generator</a>
+  <a class="navtab" href="admin.html" data-admin hidden>Admin</a>
+</div></nav>
+<main class="wrap stack" style="padding-top:16px;padding-bottom:32px">
+  <div class="kpis" id="kp" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px"></div>
+  <div class="card" style="padding:14px 18px"><div class="bar">
+    <input id="q" placeholder="Search name / contract / area" style="min-width:230px">
+    <select id="ar"><option value="">All areas</option></select>
+    <select id="ty"><option value="">All customer types</option></select>
+    <select id="mm"><option value="">Any months unpaid</option><option value="1">1 month</option><option value="2">2 months</option><option value="3">3+ months</option></select>
+    <select id="pn"><option value="">Pinned and not pinned</option><option value="y">Pinned only</option><option value="n">Not pinned yet</option></select>
+    <button class="btn" id="clr">Clear</button><button class="btn" id="fit">Fit all pins</button>
+    <span class="grow" style="flex:1"></span>
+    <label class="btn" id="impl" hidden>Import pins<input type="file" id="imp" accept=".kml,.kmz,.csv,.xlsx" hidden></label>
+    <button class="btn" id="exp" title="Download the pins shown as a KML file for Google Earth / My Maps">Export KML</button>
+    <span id="msg" class="font-semibold"></span>
+  </div>
+  <div class="lgd" style="margin-top:10px"><span><i style="background:#F59E0B"></i>1 month unpaid</span><span><i style="background:#EA580C"></i>2 months</span><span><i style="background:#B91C1C"></i>3+ months</span><span><i style="background:#6B7280"></i>Not stated</span><span>Bigger dot = bigger balance. Use the layer button on the map for Satellite view.</span></div>
+  </div>
+  <div id="pl" hidden><div class="bar"><b id="plt"></b><input id="pli" placeholder="8.4772, 124.6460  or a Google Maps link" style="min-width:280px"><button class="btn pri" id="pls">Set pin</button><button class="btn" id="plc">Cancel</button></div></div>
+  <div id="um" hidden></div>
+  <div class="mg"><div id="map"></div><div id="lst"></div></div>
+  <p class="sub" style="margin:0">Accounts here are those with a remaining balance. They appear on the map once they have a pin. To add a pin: click <b>Place pin</b> on an account, then click the map (or paste coordinates / a Google Maps link). Many at once: <b>Import pins</b> from a KML / KMZ exported from Google Earth or My Maps, or from a CSV / Excel file with Contract No. or Customer Name plus latitude and longitude.</p>
+</main>
+<script>
+const $=s=>document.querySelector(s),esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const php=n=>Number(n||0).toLocaleString('en-PH',{minimumFractionDigits:2,maximumFractionDigits:2});
+const LEAF='https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js',ZIP='https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js';
+const leafP=loadLib(LEAF);
+let recs=[],view=[],CAN=false,map,layer,rnd,placing=null,lim=100;const mk=new Map();
+const col=m=>m>=3?'#B91C1C':m==2?'#EA580C':m==1?'#F59E0B':'#6B7280',mo=r=>r.m>=1?r.m+' mo':'—';
+function flash(t,bad){const m=$('#msg');m.textContent=t;m.style.color=bad?'var(--red-d)':'var(--ok)';clearTimeout(m._t);if(!bad)m._t=setTimeout(()=>m.textContent='',3000)}
+/* "8.47, 124.64", a Google Maps link (@lat,lng or !3dlat!4dlng) -> [lat,lng] */
+function parseLL(s){s=String(s||'');const m=/@(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)/.exec(s)||/!3d(-?\d+(?:\.\d+)?)!4d(-?\d+(?:\.\d+)?)/.exec(s)||/(-?\d+(?:\.\d+)?)\s*[,;\s]\s*(-?\d+(?:\.\d+)?)/.exec(s);if(!m)return null;const la=+m[1],ln=+m[2];return la>=-90&&la<=90&&ln>=-180&&ln<=180?[la,ln]:null}
+function filt(){const q=$('#q').value.trim().toLowerCase(),a=$('#ar').value,t=$('#ty').value,m=$('#mm').value,p=$('#pn').value;
+ return recs.filter(r=>(!a||String(r.area)===a)&&(!t||r.type===t)&&(!m||(m==='3'?r.m>=3:String(r.m)===m))&&(!p||(p==='y')===(r.la!=null))&&(!q||[r.name,r.cn,r.area,r.sub].join(' ').toLowerCase().includes(q))).sort((x,y)=>(y.m||0)-(x.m||0)||y.b-x.b)}
+function pop(r){const g=r.la+','+r.ln;
+ return`<div class="pp"><b>${esc(r.name)}</b><div class="sub">Contract ${esc(r.cn??'—')} · ${esc([r.area,r.sub].filter(Boolean).join(' / ')||'No area')}</div><div style="margin:6px 0"><span class="mb" style="background:${col(r.m)}">${mo(r)}</span> <b>&#8369;${php(r.b)}</b></div>${r.d?`<div class="sub">Due ${esc(r.d)}</div>`:''}${r.dn||r.jo?`<div class="sub">DN: ${esc(r.dn||'—')} · JO: ${esc(r.jo||'—')}</div>`:''}${r.p?`<div class="sub">Phone ${esc(r.p)}</div>`:''}<div class="bar" style="margin-top:8px"><a class="btn" target="_blank" rel="noopener" href="https://www.google.com/maps/dir/?api=1&destination=${g}">Directions</a>${CAN?`<button class="btn" data-a="mv" data-id="${esc(r.id)}">Move pin</button><button class="btn" data-a="rm" data-id="${esc(r.id)}">Remove</button>`:''}</div></div>`}
+const item=r=>`<div class="it" data-a="go" data-id="${esc(r.id)}"><div style="display:flex;justify-content:space-between;gap:8px"><b>${esc(r.name)}</b><span style="white-space:nowrap;font-weight:700">&#8369;${php(r.b)}</span></div><div class="sub"><span class="mb" style="background:${col(r.m)}">${mo(r)}</span> ${esc(r.cn??'')} · ${esc(r.area)}${r.sub?' / '+esc(r.sub):''}</div><div class="sub">${r.la!=null?'&#128205; Pinned':'Not pinned'}${CAN&&r.la==null?` · <a href="#" data-a="pl" data-id="${esc(r.id)}">Place pin</a>`:''}</div></div>`;
+function list(){$('#lst').innerHTML=view.length?view.slice(0,lim).map(item).join('')+(view.length>lim?`<div style="padding:10px;text-align:center"><button class="btn" data-a="more">Show more (${view.length-lim} left)</button></div>`:''):'<div class="empty">No accounts match.</div>'}
+function render(){view=filt();const pin=view.filter(r=>r.la!=null);
+ const K=[['Delinquent accounts',view.length+(view.length!==recs.length?' of '+recs.length:'')],['Total unpaid','&#8369;'+php(view.reduce((s,r)=>s+r.b,0))],['Pinned on map',pin.length],['Not pinned yet',view.length-pin.length]];
+ $('#kp').innerHTML=K.map(([t,n],i)=>`<div class="card kpi${i%2?' dark':''}"><small>${t}</small><b>${n}</b></div>`).join('');
+ layer.clearLayers();mk.clear();
+ for(const r of pin){const c=L.circleMarker([r.la,r.ln],{renderer:rnd,radius:5+Math.min(9,Math.sqrt(r.b)/40),color:'#fff',weight:1.5,fillColor:col(r.m),fillOpacity:.9});c.bindPopup(()=>pop(r),{maxWidth:300});mk.set(r.id,c);layer.addLayer(c)}
+ list();$('#st').textContent=recs.length+' delinquent accounts'+(CAN?'':' (view only)')}
+function fit(){const p=view.filter(r=>r.la!=null);if(p.length)map.fitBounds(L.latLngBounds(p.map(r=>[r.la,r.ln])),{padding:[30,30],maxZoom:16})}
+function show(r){const m=mk.get(r.id);map.setView([r.la,r.ln],Math.max(map.getZoom(),16));if(m)m.openPopup()}
+/* placing a pin */
+function startPlace(id){const r=recs.find(x=>x.id===id);if(!r)return;placing=r;map.closePopup();$('#pl').hidden=false;$('#plt').textContent='Click the map to place the pin for '+r.name+', or paste coordinates / a Google Maps link:';$('#pli').value='';$('#pli').focus();map.getContainer().style.cursor='crosshair';$('#map').scrollIntoView({block:'nearest'})}
+function endPlace(){placing=null;$('#pl').hidden=true;map.getContainer().style.cursor=''}
+async function savePin(r,la,ln){if(!(la>=4&&la<=22&&ln>=116&&ln<=128)&&!confirm('That location is outside the Philippines. Save it anyway?'))return;
+ flash('Saving…');const j=await Auth.call('dmap_set',{id:r.id,la,ln});if(!j.ok)return flash(j.e||'Not saved',1);
+ r.la=j.la;r.ln=j.ln;endPlace();render();show(r);flash('Pin saved ✓')}
+async function rmPin(r){if(!confirm('Remove the pin of '+r.name+'?'))return;const j=await Auth.call('dmap_set',{id:r.id});if(!j.ok)return flash(j.e||'Not removed',1);delete r.la;delete r.ln;map.closePopup();render();flash('Pin removed')}
+const act=e=>{const b=e.target.closest('[data-a]');if(!b)return;const a=b.dataset.a,r=recs.find(x=>x.id===b.dataset.id);
+ if(b.tagName==='A')e.preventDefault();
+ if(a==='more'){lim+=100;list()}
+ else if(a==='go'&&r){if(r.la!=null)show(r);else if(CAN)startPlace(r.id);else flash('This account has no pin yet',1)}
+ else if(a==='pl'&&r)startPlace(r.id);else if(a==='mv'&&r)startPlace(r.id);else if(a==='rm'&&r)rmPin(r)};
+document.addEventListener('click',act);
+/* Leaflet stops clicks inside a popup from reaching the page, so the popup buttons are wired when the popup opens */
+function wirePop(e){const el=e.popup.getElement();if(el&&!el._w){el._w=1;el.addEventListener('click',act)}}
+$('#pls').onclick=()=>{const p=parseLL($('#pli').value);if(!p)return flash('Type coordinates like 8.4772, 124.6460',1);savePin(placing,p[0],p[1])};
+$('#pli').onkeydown=e=>{if(e.key==='Enter')$('#pls').click()};$('#plc').onclick=endPlace;
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&placing)endPlace()});
+/* import pins: KML / KMZ (Google Earth, My Maps) or CSV / Excel */
+function kml(t){const d=new DOMParser().parseFromString(t,'text/xml');if(d.querySelector('parsererror'))throw new Error('That KML file could not be read');
+ return[...d.getElementsByTagName('Placemark')].map(p=>{const pt=p.getElementsByTagName('Point')[0],c=pt&&pt.getElementsByTagName('coordinates')[0];if(!c)return null;
+  const[ln,la]=c.textContent.trim().split(/\s+/)[0].split(',').map(Number),nm=((p.getElementsByTagName('name')[0]||{}).textContent||'').trim(),ds=(p.getElementsByTagName('description')[0]||{}).textContent||'';
+  const m=/contract\s*(?:no\.?|number|#)?\s*[:\-]?\s*(\d+)/i.exec(nm+' '+ds)||(/^\d{4,}$/.test(nm)?[0,nm]:null);
+  return Number.isFinite(la)&&Number.isFinite(ln)?{name:nm,cn:m?m[1]:'',la,ln}:null}).filter(Boolean)}
+function sheetRow(r){const g=(...ks)=>{for(const k of Object.keys(r))if(ks.includes(k.toLowerCase().trim()))return r[k];return''};
+ let la=Number(g('lat','latitude','y')),ln=Number(g('lng','lon','long','longitude','x'));
+ if(!(la&&ln)){const p=parseLL(g('coordinates','location','coords','latlng'));if(p){la=p[0];ln=p[1]}}
+ const name=String(g('customer name','name','customer','account name')).trim(),cn=String(g('contract no.','contract no','contract','contract number','cn')).trim();
+ return la&&ln&&(name||cn)?{name,cn,la,ln}:null}
+async function readPins(f){const n=f.name.toLowerCase();
+ if(n.endsWith('.kmz')){await loadLib(ZIP);const z=await JSZip.loadAsync(await f.arrayBuffer()),k=Object.keys(z.files).find(x=>/\.kml$/i.test(x));if(!k)throw new Error('There is no KML inside that KMZ');return kml(await z.files[k].async('string'))}
+ if(n.endsWith('.kml'))return kml(await f.text());
+ await loadLib(LIB.xlsx);const wb=XLSX.read(await f.arrayBuffer(),{type:'array'});return XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{defval:''}).map(sheetRow).filter(Boolean)}
+$('#imp').onchange=async e=>{const f=e.target.files[0];e.target.value='';if(!f)return;
+ try{flash('Reading '+f.name+'…');const it=await readPins(f);if(!it.length)return flash('No locations found in that file',1);
+  if(!confirm('Found '+it.length+' locations in '+f.name+'.\n\nThey will be matched to accounts by Contract No. (or exact Customer Name) and saved as pins. Continue?'))return flash('');
+  let saved=0,bad=0,miss=[];for(let i=0;i<it.length;i+=500){const j=await Auth.call('dmap_set',{items:it.slice(i,i+500)});if(!j.ok)throw new Error(j.e||'Import failed');saved+=j.saved;bad+=j.invalid;miss.push(...j.missing)}
+  await load();const left=it.length-saved-bad;$('#um').hidden=!left;
+  if(left)$('#um').innerHTML='<b>'+left+' location(s) were not matched to an account</b> (they may be paid accounts or the name / contract number differs). First ones: '+esc(miss.slice(0,15).join('; '));
+  flash('Imported '+saved+' of '+it.length+' pins ✓');fit()}
+ catch(x){flash(x.message||'Import failed',1)}};
+/* export the pins shown as KML (opens in Google Earth, can be imported into My Maps) */
+function exportKml(){const l=view.filter(r=>r.la!=null);if(!l.length)return flash('Nothing pinned to export',1);
+ const X=s=>String(s??'').replace(/[<>&"']/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;',"'":'&apos;'}[c])),B=m=>m>=3?3:m==2?2:m==1?1:0,C=['ff80726b','ff0b9ef5','ff0c58ea','ff1c1cb9'];
+ const st=C.map((c,i)=>`<Style id="s${i}"><IconStyle><color>${c}</color><scale>0.9</scale><Icon><href>http://maps.google.com/mapfiles/kml/shapes/placemark_circle.png</href></Icon></IconStyle></Style>`).join('');
+ const pm=l.map(r=>`<Placemark><name>${X(r.name)}</name><description>${X('Contract: '+(r.cn??'')+' | Area: '+[r.area,r.sub].filter(Boolean).join(' / ')+' | Months unpaid: '+(r.m??'')+' | Remaining balance: PHP '+php(r.b))}</description><styleUrl>#s${B(r.m)}</styleUrl><Point><coordinates>${r.ln},${r.la},0</coordinates></Point></Placemark>`).join('');
+ const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['<?xml version="1.0" encoding="UTF-8"?><kml xmlns="http://www.opengis.net/kml/2.2"><Document><name>Delinquent accounts</name>'+st+pm+'</Document></kml>'],{type:'application/vnd.google-earth.kml+xml'}));
+ a.download='Delinquent_Accounts_'+new Date().toISOString().slice(0,10)+'.kml';document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1000)}
+$('#exp').onclick=exportKml;$('#fit').onclick=fit;
+const dq=debounce(()=>{lim=100;render()},200);$('#q').addEventListener('input',dq);
+['#ar','#ty','#mm','#pn'].forEach(s=>$(s).addEventListener('change',()=>{lim=100;render();fit()}));
+$('#clr').onclick=()=>{$('#q').value='';['#ar','#ty','#mm','#pn'].forEach(s=>$(s).value='');lim=100;render();fit()};
+async function load(){const j=await Auth.call('dmap_get');if(j.e){$('#st').textContent=j.e;return false}
+ recs=j.r;CAN=!!j.canEdit;$('#impl').hidden=!CAN;
+ const u=k=>[...new Set(recs.map(r=>String(r[k]??'').trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b,undefined,{numeric:true})),keep=(s,v,all)=>{const c=$(s).value;$(s).innerHTML=`<option value="">${all}</option>`+v.map(x=>`<option>${esc(x)}</option>`).join('');$(s).value=c};
+ keep('#ar',u('area'),'All areas');keep('#ty',u('type'),'All customer types');render();return true}
+Auth.ready.then(async ok=>{if(!ok)return;
+ try{await leafP}catch(e){$('#st').textContent=e.message;return}
+ /* opens on the same area as the Google Earth map (Cagayan de Oro and the surrounding towns) until pins exist */
+ map=L.map('map',{preferCanvas:true}).setView([8.5945,124.7555],10);
+ const osm=L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'&copy; OpenStreetMap contributors'}),sat=L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxZoom:19,attribution:'Tiles &copy; Esri'});
+ osm.addTo(map);L.control.layers({Street:osm,Satellite:sat},null,{position:'topright'}).addTo(map);
+ rnd=L.canvas({padding:.5});layer=L.layerGroup().addTo(map);
+ map.on('popupopen',wirePop);
+ map.on('click',e=>{if(placing)savePin(placing,e.latlng.lat,e.latlng.lng)});
+ if(await load())fit()});
+</script>
+</body>
+</html>

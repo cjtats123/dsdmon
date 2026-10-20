@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#E8171A">
+<title>DN / Job Order - CEPALCO</title>
+<link rel="stylesheet" href="theme.css">
+<script src="auth.js" data-guard="dnjo"></script>
+<style>
+.tg{display:inline-block;padding:2px 9px;border-radius:999px;font-size:11.5px;font-weight:700;white-space:nowrap}
+.g-gen{background:var(--warn-t);color:var(--warn)}.g-ok{background:var(--ok-t);color:var(--ok)}.g-tn{background:#E3EEFF;color:#1450A3}.g-no{background:#eee;color:#777}
+td.ed2{cursor:pointer}td.ed2:hover{background:#fff7f7}
+.pop{position:fixed;z-index:60;background:#fff;border:1px solid #bbb;border-radius:10px;padding:12px;box-shadow:0 8px 24px rgba(0,0,0,.2);display:flex;gap:8px;align-items:center;flex-wrap:wrap;max-width:340px}
+.bar{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.rd{font-size:11.5px;color:#1450A3;font-weight:600}
+</style>
+</head>
+<body>
+<header class="app-header no-print"><div class="wrap">
+  <a class="brand" href="index.html"><img src="cepalco-logo.png" alt="CEPALCO"></a>
+  <div class="app-title"><h1>Disconnection Notice / Job Order</h1><p>District Services Department - Collection Section</p></div>
+  <div class="app-user"><div class="u1"><span id="authSlot"></span></div><div class="u2"><span id="st">Loading…</span></div></div>
+</div></header>
+<nav class="app-nav no-print"><div class="wrap">
+  <a class="navtab" href="index.html" data-feature="collections">Collections</a>
+  <a class="navtab" href="index.html#acc" data-feature="accounts">Accounts</a>
+  <a class="navtab" href="index.html#con" data-feature="contacts">Contact Directory</a>
+  <a class="navtab" href="report.html" data-feature="report">Generate report</a>
+  <a class="navtab on" href="dnjo.html" data-feature="dnjo">DN / Job Order</a>
+  <a class="navtab" href="dmap.html" data-feature="dmap">Delinquent Accounts Mapping</a>
+  <a class="navtab" href="smsgen.html" data-feature="gen">EMAIL/SMS Generator</a>
+  <a class="navtab" href="admin.html" data-admin hidden>Admin</a>
+</div></nav>
+<main class="wrap stack" style="padding-top:16px;padding-bottom:32px">
+  <div class="card" style="padding:14px 18px"><div class="bar">
+    <label class="sub">Month <input type="month" id="mo"></label>
+    <input id="q" placeholder="Search name / contract / CLN" style="min-width:230px">
+    <select id="ar"><option value="">All areas</option></select>
+    <select id="fl">
+      <option value="">All accounts</option>
+      <option value="nodn">No DN yet (with balance)</option>
+      <option value="dngen">DN generated, not delivered</option>
+      <option value="dnok">DN delivered</option>
+      <option value="jogen">JO generated, not accomplished</option>
+      <option value="jook">JO disconnected</option>
+      <option value="tender">Tendered</option>
+      <option value="redel">Tendered - for JO redelivery</option>
+    </select>
+    <button class="btn" id="clr">Clear</button><span class="sub" id="cnt"></span><span id="msg" class="font-semibold"></span>
+  </div>
+  <p class="sub" style="margin:8px 0 0">Format: <b>GEN 18</b> = generated on the 18th · <b>OK 18</b> = DN delivered / JO accomplished (disconnected) on the 18th · <b>TENDER 18</b> = payment tendered on the 18th (JO only; the JO gets one more working day and is redelivered). The day belongs to the month selected above. Click a DN or JO cell to update it.</p></div>
+  <div class="kpis" id="kp" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px"></div>
+  <div class="tw"><table id="tb"></table></div>
+</main>
+<script>
+const $=s=>document.querySelector(s),esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const php=n=>Number(n||0).toLocaleString('en-PH',{minimumFractionDigits:2,maximumFractionDigits:2});
+let recs=[],P=null,CAN=false;
+/* "GEN 18" / "OK 18" / "TENDER 18" -> {k,d}; if several are typed, the last one counts */
+function pr(v){const m=[...String(v??'').matchAll(/(GEN|OK|TENDER)\s*(\d{1,2})/gi)].pop();return m?{k:m[1].toUpperCase(),d:+m[2]}:null}
+const mo=()=>{const[y,m]=($('#mo').value||'').split('-').map(Number);return{y,m}};
+const dOf=d=>{const{y,m}=mo();return new Date(y,m-1,d)};
+/* next working day (Mon-Fri) after the tender date */
+function nextWd(d){const x=new Date(d);do x.setDate(x.getDate()+1);while(x.getDay()===0||x.getDay()===6);return x}
+const fd=d=>d.toLocaleDateString('en-PH',{month:'short',day:'numeric',weekday:'short'});
+function tag(p,raw){if(!p)return raw?`<span class="tg g-no">${esc(raw)}</span>`:'';return`<span class="tg ${p.k==='GEN'?'g-gen':p.k==='OK'?'g-ok':'g-tn'}">${p.k} ${p.d}</span>`}
+function info(r){const dn=pr(r['DN/ODAA']),jo=pr(r['JOB-ORDER']),owed=Number(r['REMAINING BALANCE'])>0;
+ const redel=jo&&jo.k==='TENDER'?nextWd(dOf(jo.d)):null;return{r,dn,jo,owed,redel}}
+function rowsAll(){return recs.filter(r=>r['CUSTOMER NAME']&&(Number(r['REMAINING BALANCE'])>0||r['DN/ODAA']||r['JOB-ORDER'])).map(info)}
+const F={nodn:x=>x.owed&&!x.dn&&!x.jo,dngen:x=>x.dn&&x.dn.k==='GEN',dnok:x=>x.dn&&x.dn.k==='OK',jogen:x=>x.jo&&x.jo.k==='GEN',jook:x=>x.jo&&x.jo.k==='OK',tender:x=>x.jo&&x.jo.k==='TENDER',redel:x=>!!x.redel};
+function view(){const q=$('#q').value.trim().toLowerCase(),a=$('#ar').value,f=$('#fl').value;
+ return rowsAll().filter(x=>(!a||String(x.r['AREA']??'')===a)&&(!f||F[f](x))&&(!q||[x.r['CUSTOMER NAME'],x.r['CONTRACT NO.'],x.r['CLN']].join(' ').toLowerCase().includes(q)))}
+function render(){const all=rowsAll(),l=view();
+ const K=[['DN generated',all.filter(F.dngen).length+all.filter(F.dnok).length],['DN delivered',all.filter(F.dnok).length],['JO generated',all.filter(x=>x.jo).length],['JO disconnected',all.filter(F.jook).length],['Tendered',all.filter(F.tender).length]];
+ $('#kp').innerHTML=K.map(([t,n],i)=>`<div class="card kpi${i%2?' dark':''}"><small>${t}</small><b>${n}</b></div>`).join('');
+ $('#cnt').textContent=l.length+' of '+all.length+' accounts';
+ $('#tb').innerHTML='<thead><tr><th>Customer name</th><th>Contract no.</th><th>Area</th><th>Months unpaid</th><th>Remaining balance</th><th>DN status</th><th>JO status</th><th>JO next step</th><th>Field remarks</th></tr></thead><tbody>'+
+ l.slice(0,500).map(x=>{const r=x.r,e=CAN?' ed2':'';let nx='';
+  if(x.redel)nx=`<span class="rd">Tendered ${x.jo.d}: redeliver JO ${esc(fd(x.redel))}</span>`;
+  else if(x.jo&&x.jo.k==='OK')nx='Disconnected';else if(x.jo)nx='For disconnection';else if(x.dn&&x.dn.k==='OK')nx='Ready for JO';else if(x.dn)nx='Deliver DN';else if(x.owed)nx='For DN';
+  return`<tr data-id="${esc(r._id)}"><td><b>${esc(r['CUSTOMER NAME'])}</b></td><td>${esc(r['CONTRACT NO.']??'')}</td><td>${esc(r['AREA']??'')}</td><td>${esc(r['MONTHS UNPAID']??'')}</td><td style="text-align:right">${x.owed?php(r['REMAINING BALANCE']):''}</td><td class="${e}" data-c="DN/ODAA">${tag(x.dn,r['DN/ODAA'])||'&nbsp;'}</td><td class="${e}" data-c="JOB-ORDER">${tag(x.jo,r['JOB-ORDER'])||'&nbsp;'}</td><td>${nx}</td><td>${esc(r['FIELD REMARKS']??'')}</td></tr>`}).join('')+'</tbody>';
+ if(l.length>500)$('#cnt').textContent+=' (showing first 500, use filters)'}
+function flash(t,bad){const m=$('#msg');m.textContent=t;m.style.color=bad?'var(--red-d)':'var(--ok)';clearTimeout(m._t);if(!bad)m._t=setTimeout(()=>m.textContent='',2500)}
+/* click-to-update popover */
+function closePop(){P&&P.remove();P=null}
+function openPop(td){closePop();const id=td.parentNode.dataset.id,col=td.dataset.c,r=recs.find(x=>x._id===id);if(!r)return;const cur=pr(r[col])||{k:'GEN',d:new Date().getDate()};
+ const opts=['GEN','OK'].concat(col==='JOB-ORDER'?['TENDER']:[]);
+ P=document.createElement('div');P.className='pop';
+ P.innerHTML=`<b style="width:100%">${col==='JOB-ORDER'?'Job Order':'Disconnection Notice'}</b><select id="pk">${opts.map(o=>`<option${o===cur.k?' selected':''}>${o}</option>`).join('')}</select><input id="pd" type="number" min="1" max="31" value="${cur.d}" style="width:70px"><button class="btn pri" id="ps">Save</button><button class="btn" id="px">Clear</button><button class="btn" id="pc">Cancel</button>`;
+ document.body.append(P);const b=td.getBoundingClientRect();P.style.left=Math.min(b.left,innerWidth-350)+'px';P.style.top=Math.min(b.bottom+4,innerHeight-130)+'px';
+ const save=async v=>{closePop();flash('Saving…');const j=await Auth.call('dnjo_set',{id,col,v});if(!j.ok)return flash(j.e||'Not saved',1);r[col]=j.v;render();flash('Saved ✓')};
+ $('#ps').onclick=()=>{const d=+$('#pd').value;if(!(d>=1&&d<=31))return flash('Day must be 1-31',1);save($('#pk').value+' '+d)};
+ $('#px').onclick=()=>save('');$('#pc').onclick=closePop;$('#pd').focus()}
+$('#tb').onclick=e=>{const td=e.target.closest('td.ed2');if(td)openPop(td)};
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closePop()});
+['#mo','#q','#ar','#fl'].forEach(s=>$(s).addEventListener('input',render));
+$('#clr').onclick=()=>{$('#q').value='';$('#ar').value='';$('#fl').value='';render()};
+Auth.ready.then(async ok=>{if(!ok)return;CAN=Auth.can('dnjo','update');
+ const n=new Date();$('#mo').value=n.getFullYear()+'-'+String(n.getMonth()+1).padStart(2,'0');
+ const j=await Auth.call('getdata');if(j.e){$('#st').textContent=j.e;return}
+ recs=j.r;$('#st').textContent=recs.length+' accounts'+(CAN?'':' (view only)');
+ const ar=[...new Set(recs.map(r=>String(r['AREA']??'').trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b,undefined,{numeric:true}));
+ $('#ar').innerHTML='<option value="">All areas</option>'+ar.map(v=>`<option>${esc(v)}</option>`).join('');render()});
+</script>
+</body>
+</html>

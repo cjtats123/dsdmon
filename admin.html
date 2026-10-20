@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#E8171A">
+    <title>Admin · CEPALCO Collection Monitoring</title>
+    <link rel="stylesheet" href="theme.css">
+    <script src="auth.js" data-admin></script>
+</head>
+<body>
+    <header class="app-header no-print">
+        <div class="wrap">
+            <a class="brand" href="index.html" title="CEPALCO"><img src="cepalco-logo.png" alt="CEPALCO – Cagayan Electric Power &amp; Light Company, Inc."></a>
+            <div class="app-title">
+                <h1>Collection Monitoring Update System</h1>
+                <p>District Services Department - Collection Section &nbsp;|&nbsp; Admin</p>
+            </div>
+            <div class="app-user">
+                <div class="u1"><span class="loc">Cagayan de Oro City, Northern Mindanao</span><span id="authSlot"></span></div>
+            </div>
+        </div>
+    </header>
+    <nav class="app-nav no-print">
+        <div class="wrap">
+            <a class="navtab" href="index.html" data-feature="collections">Collections</a>
+            <a class="navtab" href="index.html#acc" data-feature="accounts">Accounts</a>
+            <a class="navtab" href="index.html#con" data-feature="contacts">Contact Directory</a>
+            <a class="navtab" href="report.html" data-feature="report">Generate report</a>
+            <a class="navtab" href="dnjo.html" data-feature="dnjo">DN / Job Order</a>
+            <a class="navtab" href="dmap.html" data-feature="dmap">Delinquent Accounts Mapping</a>
+            <a class="navtab" href="smsgen.html" data-feature="gen">EMAIL/SMS Generator</a>
+            <a class="navtab on" href="admin.html" data-admin>Admin</a>
+        </div>
+    </nav>
+    <main class="wrap grid2 adm">
+        <p id="m" class="msg span-all"></p>
+        <section class="card pad">
+            <h2>Users</h2>
+            <table><thead><tr><th>Username</th><th>Role</th><th>Actions</th></tr></thead><tbody id="ul"></tbody></table>
+            <form id="nu" class="addrow">
+                <input id="u" placeholder="New username" autocomplete="off" required>
+                <input id="p" type="password" placeholder="Password" autocomplete="new-password" required>
+                <button class="btn pri">Create user</button>
+            </form>
+        </section>
+        <section class="card pad">
+            <h2>Permissions</h2>
+            <p class="sub" style="margin:0 0 12px">Pick who to edit, then tick what they can do on each page. Admin always has full access.</p>
+            <select id="who" style="margin-bottom:12px;min-width:240px"></select>
+            <table><thead><tr><th>Feature</th><th class="ctr">View</th><th class="ctr">Create</th><th class="ctr">Edit</th><th class="ctr">Delete</th></tr></thead><tbody id="mx"></tbody></table>
+            <p class="sub" style="margin:14px 0 0"><b>Accounts:</b> View shows the summary table. Create adds accounts, Edit changes any cell in the Excel-format grid, Delete removes accounts. Anyone with Create, Edit or Delete on Accounts also sees the full Excel-format grid. <b>EMAIL/SMS generator:</b> View opens the generator page (and lets the user generate), Edit lets the user change the shared email / SMS templates and the Text button message (EMAIL/SMS Generator &rarr; Templates). <b>Contact Directory:</b> View shows customer, contract number, phone number, email and contact person; Edit lets the user update phone, email and contact person. All of this is enforced on the server.</p>
+        </section>
+        <section class="card pad">
+            <h2>My password</h2>
+            <form id="cp" class="addrow">
+                <input id="cpo" type="password" placeholder="Current password" autocomplete="current-password" required>
+                <input id="cpn" type="password" placeholder="New password (min 8)" autocomplete="new-password" minlength="8" required>
+                <button class="btn pri">Change password</button>
+            </form>
+        </section>
+        <section class="card pad">
+            <h2>Backups</h2>
+            <p class="sub" style="margin:0 0 10px">A copy of all accounts is saved automatically before every <b>Load Excel</b> and before a restore. The latest 8 are kept.</p>
+            <button type="button" id="bkNow" class="btn" style="margin-bottom:10px">Back up now</button> <button type="button" id="dlx" class="btn" style="margin-bottom:10px" title="Download all accounts as an Excel file">Download Excel</button>
+            <table><thead><tr><th>Saved</th><th>Why</th><th class="ctr">Accounts</th><th></th></tr></thead><tbody id="bkl"></tbody></table>
+        </section>
+        <section class="card pad span-all">
+            <h2>Sign-in log</h2>
+            <p class="sub" style="margin:0 0 10px">Who signed in and out, and failed sign-in attempts. Latest 200 events. A user who just closes the browser tab is not logged as signed out.</p>
+            <div class="tw"><table><thead><tr><th>When</th><th>User</th><th>Event</th><th>IP address</th></tr></thead><tbody id="sil"></tbody></table></div>
+        </section>
+        <section class="card pad span-all">
+            <h2>Change log</h2>
+            <p class="sub" style="margin:0 0 10px">Latest 200 changes to accounts: who, when, what.</p>
+            <div class="tw"><table><thead><tr><th>When</th><th>User</th><th>Action</th><th>Account</th><th>Contract</th><th>Changed (old &rarr; new)</th></tr></thead><tbody id="aul"></tbody></table></div>
+        </section>
+    </main>
+<script>
+Auth.ready.then(async ok=>{if(!ok)return;
+let db={users:[],perms:{}};const $=s=>document.querySelector(s),esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const msg=(t,e)=>{$('#m').textContent=t;$('#m').className='msg span-all '+(e?'bad':'ok')};
+async function refresh(){const j=await Auth.call('users');if(j.e)return msg(j.e,1);db=j;users()}
+function users(){$('#ul').innerHTML=db.users.map(x=>`<tr><td>${esc(x.u)}</td><td>${x.role==='admin'?'Admin':'User'}</td><td><button class="lk" data-a="pw" data-u="${esc(x.u)}">Reset password</button>${x.role==='admin'?'':`<button class="lk red" data-a="del" data-u="${esc(x.u)}">Delete</button>`}</td></tr>`).join('');
+const cur=$('#who').value;$('#who').innerHTML='<option value="guest">Guest</option>'+db.users.filter(x=>x.role==='user').map(x=>`<option value="${esc(x.u)}">User: ${esc(x.u)}</option>`).join('');if([...$('#who').options].some(o=>o.value===cur))$('#who').value=cur;mx()}
+function mx(){const p=db.perms[$('#who').value]||{};$('#mx').innerHTML=Object.entries(Auth.FEATS).map(([f,n])=>`<tr><td style="font-weight:600">${n}</td>`+Auth.ACTS.map(a=>(Auth.NA[f]||[]).includes(a)?'<td class="ctr" style="color:#bbb">\u2014</td>':`<td class="ctr"><input type="checkbox" data-f="${f}" data-a="${a}" ${p[f]&&p[f][a]?'checked':''}></td>`).join('')+'</tr>').join('')}
+$('#who').onchange=mx;
+$('#mx').onchange=async e=>{const t=e.target,k=$('#who').value,v=t.checked?1:0;const j=await Auth.call('setperm',{k,f:t.dataset.f,x:t.dataset.a,v});if(j.e){t.checked=!v;return msg(j.e,1)}const p=db.perms[k]=db.perms[k]||{};(p[t.dataset.f]=p[t.dataset.f]||{})[t.dataset.a]=v;msg('Permissions saved')};
+$('#nu').onsubmit=async e=>{e.preventDefault();const u=$('#u').value.trim().toLowerCase(),j=await Auth.call('adduser',{u,p:$('#p').value});if(j.e)return msg(j.e,1);e.target.reset();msg('User "'+u+'" created (starts with the same access as guest)');refresh()};
+$('#ul').onclick=async e=>{const b=e.target.closest('button');if(!b)return;const u=b.dataset.u;
+if(b.dataset.a==='pw'){const p=prompt('New password for '+u+' (min 8 characters):');if(p===null)return;const j=await Auth.call('setpw',{u,p});msg(j.e||'Password updated for '+u,!!j.e)}
+else if(confirm('Delete user '+u+'?')){const j=await Auth.call('deluser',{u});msg(j.e||'User deleted',!!j.e);refresh()}};
+refresh();
+/* ---- my password ---- */
+$('#cp').onsubmit=async e=>{e.preventDefault();const r=await Auth.chpw($('#cpo').value,$('#cpn').value);if(r===true){e.target.reset();msg('Your password was changed')}else msg(r,1)};
+/* ---- backups ---- */
+const when=t=>new Date(t).toLocaleString('en-PH',{month:'short',day:'numeric',year:'numeric',hour:'numeric',minute:'2-digit'});
+async function backups(){const j=await Auth.call('backups');if(j.e)return;$('#bkl').innerHTML=j.l.map(b=>`<tr><td>${esc(when(b.t))}</td><td>${esc(b.label||'')}</td><td class="ctr">${b.count}</td><td><button class="lk" data-k="${esc(b.key)}">Restore</button></td></tr>`).join('')||'<tr><td colspan="4">No backups yet. One is made automatically the next time you use Load Excel.</td></tr>'}
+$('#bkNow').onclick=async()=>{const j=await Auth.call('backup_now');msg(j.e||'Backup saved',!!j.e);backups()};
+/* download every account as an Excel file (same layout and file name as Export to Excel in the Accounts grid; can be loaded again with Load Excel) */
+$('#dlx').onclick=async()=>{msg('Preparing the Excel file\u2026');const j=await Auth.call('getdata');if(j.e||!j.r)return msg(j.e||'Could not read the accounts',1);if(!j.r.length)return msg('There are no accounts to download yet',1);
+try{await downloadAccountsXlsx(j);msg('Excel file downloaded ('+j.r.length+' accounts)')}catch(x){msg(x.message,1)}};
+$('#bkl').onclick=async e=>{const b=e.target.closest('button[data-k]');if(!b)return;if(!confirm('Replace ALL current accounts with this backup? The current list is backed up first, so you can undo this.'))return;const j=await Auth.call('backup_restore',{key:b.dataset.k});msg(j.e||('Restored '+j.count+' accounts'),!!j.e);backups();changes()};
+/* ---- change log ---- */
+const AC={add:'Added','edit':'Edited','edit contact':'Edited contact',delete:'Deleted','DN/JO':'DN / JO','load excel':'Load Excel','restore backup':'Restored backup'};
+async function changes(){const j=await Auth.call('audit_get');if(j.e)return;$('#aul').innerHTML=j.l.slice(0,200).map(x=>`<tr><td style="white-space:nowrap">${esc(when(x.t))}</td><td>${esc(x.u)}</td><td>${esc(AC[x.a]||x.a)}</td><td>${esc(x.n||'')}</td><td>${esc(x.cn||'')}</td><td>${(x.d||[]).map(d=>esc(d[0])+': '+(d[1]===''?'(blank)':esc(d[1]))+' \u2192 '+(d[2]===''?'(blank)':esc(d[2]))).join('<br>')}</td></tr>`).join('')||'<tr><td colspan="6">No changes recorded yet.</td></tr>'}
+const SE={login:'Signed in',logout:'Signed out',failed:'Failed sign-in',locked:'Locked out (too many tries)'};
+async function signins(){const j=await Auth.call('signin_get');if(j.e)return;$('#sil').innerHTML=j.l.slice(0,200).map(x=>`<tr><td style="white-space:nowrap">${esc(when(x.t))}</td><td>${esc(x.u)}</td><td${x.e==='failed'||x.e==='locked'?' style="color:var(--red-d)"':''}>${esc(SE[x.e]||x.e)}</td><td>${esc(x.ip||'')}</td></tr>`).join('')||'<tr><td colspan="4">No sign-ins recorded yet.</td></tr>'}
+backups();changes();signins()});
+</script>
+</body>
+</html>

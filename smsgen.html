@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#E8171A">
+<title>EMAIL/SMS Generator - CEPALCO</title>
+<link rel="stylesheet" href="theme.css">
+<script src="auth.js" data-guard="gen"></script>
+<script src="sms.js"></script>
+<style>
+.tabs{display:flex;gap:6px}
+.tabs button{border:1px solid #cfcfcf;background:#fff;border-radius:8px;padding:8px 18px;font:inherit;font-size:13px;font-weight:600;color:var(--ink-2);cursor:pointer;min-height:36px}
+.tabs button:hover{border-color:#9a9a9a}
+.tabs button.on{background:var(--ink);border-color:var(--ink);color:#fff}
+.gview[hidden]{display:none!important}
+textarea.ta{width:100%;border:1px solid #cfcfcf;border-radius:8px;background:#fff;padding:10px 12px;font:inherit;font-size:13px;color:var(--ink);resize:vertical}
+textarea.ta:hover{border-color:#9a9a9a}
+textarea.ta:focus{outline:2px solid var(--red);outline-offset:0;border-color:var(--red)}
+textarea.ta.mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12.5px;white-space:pre}
+textarea.ta:disabled,input:disabled{background:#f2f2f2;color:#777}
+.lab{display:block;font-size:12px;font-weight:700;color:var(--ink-2);margin:0 0 4px}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.row>.grow{flex:1}
+.note{text-align:left;background:var(--warn-t);color:var(--warn);border:1px solid #F0D9A0;border-radius:8px;padding:10px 14px;font-size:12.5px}
+.note ul{margin:4px 0 0;padding-left:18px}
+.note b{font-weight:700}
+.info{background:var(--red-t);border:1px solid #F6C9CA;border-radius:8px;padding:10px 14px;font-size:12.5px;color:var(--ink-2)}
+.pv{max-height:260px;min-height:120px}
+.pv table th,.pv table td{padding:6px 10px}
+.pv td.nm{max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.mode{font-weight:700}.mode.e{color:#1450A3}.mode.s{color:var(--ok)}
+.vars{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:6px 18px;font-size:12.5px;color:var(--ink-2)}
+.vars code{font-family:ui-monospace,Menlo,Consolas,monospace;font-weight:700;color:var(--red-d)}
+.box2{background:#FAFAFA;border:1px solid var(--line);border-radius:8px;padding:12px}
+.sec{display:flex;flex-direction:column;gap:12px}
+.sec>h3{margin:0;font-size:14px;font-weight:700;padding-bottom:6px;border-bottom:1px solid var(--line)}
+.toast{position:fixed;left:50%;bottom:24px;transform:translate(-50%,20px);background:var(--ink);color:#fff;padding:10px 18px;border-radius:10px;font-size:13px;font-weight:600;box-shadow:0 8px 24px rgba(0,0,0,.3);opacity:0;pointer-events:none;transition:opacity .25s,transform .25s;z-index:80;max-width:min(92vw,560px);text-align:center}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+.counter{font-size:12px;color:var(--mute)}
+.ulbox{max-height:340px;min-height:120px}.ulbox th,.ulbox td{padding:6px 10px}.ulbox tbody tr{cursor:pointer}.ulbox tbody tr:hover td{background:#F7F7F7}.ulbox tbody tr.sel td{background:var(--red-t)}.ulbox td.ck{width:34px;padding-right:0}.ulbox td.nm{max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+details.paste>summary{cursor:pointer;font-weight:700;font-size:14px}details.paste[open]>summary{margin-bottom:10px}
+#vg>*,#vs .grid2>*,.stack>*{min-width:0}
+@media (max-width:1000px){#vg,#vs .grid2{grid-template-columns:minmax(0,1fr)}}
+@media (max-width:700px){.tabs{width:100%}.tabs button{flex:1;padding:8px 6px}.info{font-size:12px}}
+</style>
+</head>
+<body>
+<header class="app-header no-print"><div class="wrap">
+  <a class="brand" href="index.html"><img src="cepalco-logo.png" alt="CEPALCO"></a>
+  <div class="app-title"><h1>EMAIL/SMS Generator</h1><p>District Services Department - Collection Section</p></div>
+  <div class="app-user"><div class="u1"><span id="authSlot"></span></div><div class="u2"><span id="st">Loading…</span></div></div>
+</div></header>
+<nav class="app-nav no-print"><div class="wrap">
+  <a class="navtab" href="index.html" data-feature="collections">Collections</a>
+  <a class="navtab" href="index.html#acc" data-feature="accounts">Accounts</a>
+  <a class="navtab" href="index.html#con" data-feature="contacts">Contact Directory</a>
+  <a class="navtab" href="report.html" data-feature="report">Generate report</a>
+  <a class="navtab" href="dnjo.html" data-feature="dnjo">DN / Job Order</a>
+  <a class="navtab" href="dmap.html" data-feature="dmap">Delinquent Accounts Mapping</a>
+  <a class="navtab on" href="smsgen.html" data-feature="gen">EMAIL/SMS Generator</a>
+  <a class="navtab" href="admin.html" data-admin hidden>Admin</a>
+</div></nav>
+
+<main class="wrap stack" style="padding-top:16px;padding-bottom:32px">
+  <div class="card toolbar">
+    <div class="tabs"><button id="tg" class="on" type="button">1. Generator</button><button id="ts" type="button">2. Templates</button></div>
+    <span class="grow"></span>
+    <span class="meta" id="hdrmsg"></span>
+  </div>
+
+  <!-- ============ GENERATOR ============ -->
+  <section id="vg" class="gview grid2" style="align-items:start">
+    <div class="stack">
+      <div class="card pad stack">
+        <div class="row"><h2 class="grow" style="margin:0">Unpaid list</h2><span class="tag Nob" id="ulc">Loading…</span><button type="button" class="lk" id="ulr" style="padding:0">Refresh</button></div>
+        <p class="sub" style="margin:0">Accounts with a remaining balance, sorted by name. Search (e.g. <b>A Brown</b>), tick the accounts you want and they are added to the message. Pick several to send many accounts to one number or email.</p>
+        <input id="uq" type="text" placeholder="Search name or contract no." autocomplete="off" style="width:100%">
+        <div class="row"><button type="button" class="btn" id="uall">Add all shown</button><button type="button" class="btn" id="unone">Clear selection</button><span class="counter grow" id="usel"></span></div>
+        <div class="tw pv ulbox"><table><thead><tr><th></th><th>Name</th><th>Contract</th><th>Mos</th><th>Due date</th><th class="n">Amount</th></tr></thead><tbody id="ulb"><tr><td colspan="6" class="sub" style="text-align:center;padding:24px">Loading unpaid accounts…</td></tr></tbody></table></div>
+        <p class="sub" id="ulm" style="margin:0"></p>
+      </div>
+      <details class="card pad paste">
+        <summary>Or paste rows from Excel</summary>
+        <div class="stack">
+        <div class="row"><span class="grow"></span><button type="button" class="lk" id="clr" style="padding:0">Clear pasted rows</button></div>
+        <p class="sub" style="margin:0">Copy the rows straight from the Excel sheet (header row optional). Columns: <b>CUSTOMER NAME · AREA · RATE SCHED · CONTRACT NO. · MONTHS UNPAID · DUE DATE · PAYMENT DATE · ARREARS · LATEST BILL AMOUNT · TOTAL BALANCE AMOUNT · PAID AMOUNT · REMAINING BALANCE</b>. The message uses the <b>REMAINING BALANCE</b> as the amount; rows with no balance are skipped.</p>
+        <textarea id="raw" class="ta mono" rows="9" spellcheck="false" placeholder="CUSTOMER NAME&#9;AREA&#9;RATE SCHED&#9;CONTRACT NO.&#9;MONTHS UNPAID&#9;DUE DATE&#9;PAYMENT DATE&#9;ARREARS&#9;LATEST BILL AMOUNT&#9;TOTAL BALANCE AMOUNT&#9;PAID AMOUNT&#9;REMAINING BALANCE&#10;ISON TOWER LTD.INC&#9;2&#9;48&#9;5560775&#9;1&#9;10/20/2026&#9;&#9; -   &#9; 33,688.17 &#9; 33,688.17 &#9; -   &#9; 33,688.17 "></textarea>
+        <button type="button" class="btn pri lg" id="proc">Process data</button>
+        <div class="info"><b>How counting works:</b> each click on <b>Prep Email</b> or <b>Prep SMS</b> (or on Outlook / Messenger, when they have to generate first) adds 1 to the <b>Generated</b> column on <b>Accounts</b> for every pasted contract number found there. Typing or pasting only previews; it is not counted. Clicking the same thing again for unchanged data is not counted twice.</div>
+        </div>
+      </details>
+      <div id="warn" class="note" hidden><b>Warnings &amp; notes</b><ul id="warnl"></ul></div>
+      <div class="card">
+        <div class="row" style="padding:10px 16px;border-bottom:1px solid var(--line)"><b class="grow" style="font-size:13px">Accounts in the message</b><span class="tag Nob" id="rc">0 records</span></div>
+        <div class="tw pv" style="max-height:260px;border:0;box-shadow:none;border-radius:0 0 10px 10px">
+          <table><thead><tr><th>Contract</th><th>Name</th><th>Mos</th><th>Due date</th><th class="n">Amount</th><th></th></tr></thead><tbody id="pb"><tr><td colspan="6" class="sub" style="text-align:center;padding:24px">Tick accounts in the Unpaid list to see them here</td></tr></tbody></table>
+        </div>
+      </div>
+    </div>
+
+    <div class="card pad stack">
+      <h2 style="margin:0">Generated output</h2>
+      <div class="row">
+        <button type="button" class="btn lg grow" id="be">Prep Email</button>
+        <button type="button" class="btn lg grow" id="bs">Prep SMS</button>
+      </div>
+      <div class="row">
+        <button type="button" class="btn pri lg grow" id="bo">Open in Outlook</button>
+        <button type="button" class="btn blk lg grow" id="bm">Copy &amp; open Messenger</button>
+      </div>
+      <div class="box2 stack" style="gap:8px">
+        <label class="lab" for="tonum" style="margin:0">Send SMS to (mobile number)</label>
+        <div class="row"><input id="tonum" type="text" inputmode="tel" autocomplete="off" placeholder="09XX XXX XXXX (optional)" style="flex:1;min-width:160px"><a class="btn pri lg" id="bp" href="sms:" role="button" style="text-decoration:none;display:inline-flex;align-items:center;justify-content:center">Open SMS app</a></div>
+        <p class="sub" id="tohint" style="margin:0">Opens Messages on Android / iPhone with the number and message filled in, and copies the message too. Open this page on the phone you will send from.</p>
+      </div>
+      <div class="row"><span style="font-size:13px;font-weight:600">Preview <span id="mode" class="mode">(none)</span></span><span class="grow"></span><span class="counter" id="cnt"></span><button type="button" class="btn blk" id="bc">Copy</button></div>
+      <textarea id="out" class="ta" rows="16" readonly placeholder="Your generated message will appear here…" style="min-height:300px"></textarea>
+    </div>
+  </section>
+
+  <!-- ============ TEMPLATES ============ -->
+  <section id="vs" class="gview" hidden>
+    <div class="card pad sec" style="max-width:980px;margin:0 auto;width:100%">
+      <div class="row">
+        <div class="grow"><h2 style="margin:0">Templates &amp; settings</h2><p class="sub" style="margin:4px 0 0" id="sset">Saved on the server and shared by everyone who uses the generator.</p></div>
+        <button type="button" class="btn" id="sdef">Reset to defaults</button>
+        <button type="button" class="btn pri" id="ssave">Save templates</button>
+      </div>
+      <p id="sm" class="msg" style="margin:0"></p>
+      <div class="box2">
+        <b style="font-size:12.5px;display:block;margin-bottom:6px">Variables you can use</b>
+        <div class="vars">
+          <div><code>[NAME]</code> account name</div><div><code>[CONTRACT]</code> contract no.</div>
+          <div><code>[AMOUNT]</code> amount</div><div><code>[MONTHS]</code> months unpaid</div>
+          <div><code>[DUEDATE]</code> due date</div><div><code>[BILLING_MONTH]</code> e.g. June</div>
+          <div><code>[BILLING_MONTH-1]</code> e.g. May</div><div><code>[BILLING_MONTH+1]</code> e.g. July</div>
+          <div><code>[BILLING_MONTH_YEAR]</code> e.g. June 2026</div><div><code>[BILLING_MONTH_YEAR-1]</code> e.g. May 2026</div>
+        </div>
+        <p class="sub" style="margin:8px 0 0">The billing month comes from the due date of the first pasted row. Spacing is applied automatically: one blank line between header, accounts and footer, so extra blank lines in the boxes below do not matter. Name / contract / amount / months / due date are only filled in the per-account loop.</p>
+      </div>
+
+      <div class="sec"><h3>1. General</h3>
+        <div class="grid2">
+          <div><label class="lab" for="s_cc">Outlook CC address(es)</label><input id="s_cc" type="text" style="width:100%" placeholder="cc1@email.com; cc2@email.com"></div>
+          <div><label class="lab" for="s_subject">Email subject line</label><input id="s_subject" type="text" style="width:100%"></div>
+          <div class="span-all"><label class="lab" for="s_msgr">Messenger chat link (opened after the SMS text is copied)</label><input id="s_msgr" type="text" style="width:100%" placeholder="https://www.messenger.com/…"></div>
+        </div>
+      </div>
+      <div class="sec"><h3>2. Email template</h3>
+        <div><label class="lab" for="s_email_head">Header (intro text)</label><textarea id="s_email_head" class="ta" rows="4"></textarea></div>
+        <div class="box2"><label class="lab" for="s_email_loop" style="color:#1450A3">Per-account loop (repeats for every pasted row)</label><textarea id="s_email_loop" class="ta mono" rows="6"></textarea></div>
+        <div><label class="lab" for="s_email_foot">Footer (sign-off)</label><textarea id="s_email_foot" class="ta" rows="7"></textarea></div>
+      </div>
+      <div class="sec"><h3>3. SMS template</h3>
+        <div><label class="lab" for="s_sms_head">Header</label><textarea id="s_sms_head" class="ta" rows="2"></textarea></div>
+        <div class="box2"><label class="lab" for="s_sms_loop" style="color:var(--ok)">Per-account loop (repeats for every pasted row)</label><textarea id="s_sms_loop" class="ta mono" rows="2"></textarea></div>
+        <div><label class="lab" for="s_sms_foot">Footer</label><textarea id="s_sms_foot" class="ta" rows="2"></textarea></div>
+        <p class="sub" style="margin:0">Tip: write <b>P</b> or <b>PHP</b> instead of the peso sign. The peso sign forces 70-character SMS segments instead of 160.</p>
+      </div>
+      <div class="sec"><h3>4. Text button message (phone's SMS app)</h3>
+        <p class="sub" style="margin:0">The message the <b>Text</b> button puts in the phone's SMS app (Accounts / Contact Directory). Placeholders: <code>{name}</code> <code>{contract}</code> <code>{amount}</code> <code>{months_unpaid}</code> <code>{due_date}</code>. Text inside <code>[[ double brackets ]]</code> is left out when its value is empty. Users need <b>Send text</b> and <b>Contact Directory</b> view. Saved separately with its own button.</p>
+        <div><label class="lab" for="smsT">Message</label><textarea id="smsT" class="ta" rows="4" maxlength="500"></textarea></div>
+        <div><label class="lab" for="smsC">Closing line</label><input id="smsC" type="text" maxlength="300" style="width:100%"></div>
+        <div class="box2"><b style="font-size:12.5px;display:block;margin-bottom:4px">Preview</b><pre id="smsP" style="white-space:pre-wrap;margin:0;font:inherit;font-size:13px"></pre><p id="smsI" class="sub" style="margin:4px 0 0"></p></div>
+        <div class="row"><button type="button" class="btn pri" id="smsS">Save message</button><button type="button" class="btn" id="smsR">Reset to default</button></div>
+      </div>
+    </div>
+  </section>
+</main>
+<div id="toast" class="toast" role="status"></div>
+
+<script>
+const $=s=>document.querySelector(s),esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const KEYS=['cc','subject','msgr','email_head','email_loop','email_foot','sms_head','sms_loop','sms_foot'];
+let pasted=[],pasteWarns=[],unpaid=[],picked=new Map();
+let cfg={},DEF={},canEdit=false,accts=[],mode='',counted={email:'',sms:''},busy=false;
+
+/* ---------- small helpers ---------- */
+let _tt;function toast(m,ms=2600){const t=$('#toast');t.textContent=m;t.classList.add('show');clearTimeout(_tt);_tt=setTimeout(()=>t.classList.remove('show'),ms)}
+function copyText(t){if(navigator.clipboard&&navigator.clipboard.writeText)return navigator.clipboard.writeText(t).catch(()=>fallback(t));fallback(t);return Promise.resolve()}
+function fallback(t){const a=document.createElement('textarea');a.value=t;a.style.cssText='position:fixed;left:-9999px';document.body.append(a);a.focus();a.select();try{document.execCommand('copy')}catch(e){}a.remove()}
+
+/* ---------- tabs ---------- */
+function tab(t){$('#vg').hidden=t!=='g';$('#vs').hidden=t!=='s';$('#tg').classList.toggle('on',t==='g');$('#ts').classList.toggle('on',t==='s');if(t==='s')fillSettings()}
+$('#tg').onclick=()=>tab('g');$('#ts').onclick=()=>tab('s');
+
+/* ---------- settings (shared, stored on the server) ---------- */
+function fillSettings(){KEYS.forEach(k=>{$('#s_'+k).value=cfg[k]??'';$('#s_'+k).disabled=!canEdit});$('#ssave').hidden=$('#sdef').hidden=!canEdit;
+ $('#sset').textContent=canEdit?'Saved on the server and shared by everyone who uses the generator.':'You can view the templates but not change them (needs Edit on the EMAIL/SMS generator in Admin).'}
+const readSettings=()=>Object.fromEntries(KEYS.map(k=>[k,$('#s_'+k).value]));
+function smsg(t,bad){const m=$('#sm');m.textContent=t;m.className='msg '+(bad?'bad':'ok');clearTimeout(m._t);if(!bad)m._t=setTimeout(()=>m.textContent='',3000)}
+$('#ssave').onclick=async()=>{const j=await Auth.call('gen_cfg',{cfg:readSettings()});if(!j.ok)return smsg(j.e||'Not saved',1);cfg=j.cfg;smsg('Templates saved ✓');if(accts.length)regen()};
+$('#sdef').onclick=()=>{if(!confirm('Put the default templates back in the boxes? (Nothing changes until you click Save templates.)'))return;KEYS.forEach(k=>$('#s_'+k).value=DEF[k]??'')};
+
+
+/* ---------- Text button message (separate save) ---------- */
+const sT=$('#smsT'),sC=$('#smsC');
+function sPrev(){const v=SMS.preview(sT.value,sC.value);$('#smsP').textContent=v.text;$('#smsI').textContent=v.info}
+function fillSms(d){sT.value=d.tpl;sC.value=d.closing;sT.disabled=sC.disabled=!canEdit;$('#smsS').hidden=$('#smsR').hidden=!canEdit;sPrev()}
+sT.oninput=sC.oninput=sPrev;
+$('#smsS').onclick=async()=>{const j=await Auth.call('sms_cfg',{tpl:sT.value,closing:sC.value});if(!j.ok)return smsg(j.e||'Not saved',1);smsg('Text button message saved ✓')};
+$('#smsR').onclick=()=>{sT.value=SMS.DEF.tpl;sC.value=SMS.DEF.closing;sPrev()};
+
+
+/* ---------- Open SMS app (Android / iPhone) ---------- */
+let toEdited=false;
+const HINT0='Opens Messages on Android / iPhone with the number and message filled in, and copies the message too. Open this page on the phone you will send from.';
+/* number from the ticked accounts' contact details: filled in when they all share one number */
+function autoNum(){
+ const nums=[...new Set([...picked.values()].map(a=>SMS.norm(a.phone)).filter(Boolean))],h=$('#tohint');if(!h)return;
+ if(!toEdited)$('#tonum').value=nums.length===1?nums[0]:'';
+ h.textContent=nums.length>1?`The ticked accounts have ${nums.length} different mobile numbers. Type the one to use.`:(picked.size&&!nums.length?'No mobile number on file for the ticked accounts. Type one, or leave it empty and pick the contact in the SMS app.':HINT0)}
+$('#tonum').addEventListener('input',()=>{toEdited=!!$('#tonum').value.trim()});
+/* The button is a real sms: link that is kept up to date, so the phone opens the SMS app itself (more reliable than a script redirect). */
+const isIOS=()=>/iPad|iPhone|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+const smsHref=(num,body)=>'sms:'+num+(isIOS()?'&':'?')+'body='+encodeURIComponent(body);
+function smsTarget(){const raw=$('#tonum').value.trim(),num=raw?SMS.norm(raw):'';return{num:num||'',bad:!!raw&&!num}}
+function updSms(){const t=smsTarget();$('#bp').href=(accts.length&&!t.bad)?smsHref(t.num,build('sms')):'#'}
+$('#tonum').addEventListener('input',updSms);
+$('#bp').addEventListener('click',e=>{
+ if(!accts.length){e.preventDefault();return toast('Tick some accounts (or paste rows) first.')}
+ if(smsTarget().bad){e.preventDefault();return toast('That is not a valid mobile number (use 09XX XXX XXXX or +63 9XX XXX XXXX).',4200)}
+ updSms();
+ ensure('sms');                                   // builds the SMS text and counts it (server call runs in the background)
+ copyText($('#out').value);                       // auto-copy, in case the SMS app does not take the text
+ if(!/Android|iPhone|iPad|iPod/i.test(navigator.userAgent)&&!isIOS()){e.preventDefault();return toast('SMS links only open on a phone. The message is copied: paste it into your SMS app.',5200)}
+ toast('SMS copied. Opening your SMS app… if the text is empty there, just paste it.',3600)});
+
+/* ---------- parsing ---------- */
+const HEAD_COLS=['CUSTOMER NAME','AREA','RATE SCHED','CONTRACT NO.','MONTHS UNPAID','DUE DATE','PAYMENT DATE','ARREARS','LATEST BILL AMOUNT','TOTAL BALANCE AMOUNT','PAID AMOUNT','REMAINING BALANCE'];
+const isDate=v=>/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(v||'');
+const isMoney=v=>/^(-|[\d,]+(\.\d+)?)$/.test(v||'');
+const money=v=>{const n=parseFloat(String(v??'').replace(/[,\s]/g,''));return isNaN(n)?0:n};
+const fmt=n=>n.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+/* one Excel row -> {name,contract,months,dueDate,amount} using the 12-column layout; amount = REMAINING BALANCE */
+function readRow(line){
+ const t=line.replace(/\s+$/,'');
+ if(t.includes('\t')){                                   // pasted straight from Excel (tab-separated; PAYMENT DATE may be empty)
+  const c=t.split('\t').map(x=>x.trim());
+  if(c.length<12)return{err:`expected 12 columns (${HEAD_COLS[0]} … ${HEAD_COLS[11]}) but found ${c.length}`};
+  return{name:c[0],contract:c[3],months:c[4],dueDate:c[5],remaining:c[11]};
+ }
+ const k=t.trim().split(/\s+/);                          // spaces only (e.g. pasted from chat): work backwards from the money columns
+ if(k.length<11)return{err:'invalid format or missing columns'};
+ const m=k.splice(k.length-5,5),remaining=m[4];
+ let due=k.pop();if(isDate(due)&&isDate(k[k.length-1]))due=k.pop();   // drop PAYMENT DATE when both dates are present
+ const months=k.pop(),contract=k.pop();k.pop();k.pop();             // RATE SCHED, AREA
+ return{name:k.join(' '),contract,months,dueDate:due,remaining};
+}
+function processData(){
+ const warns=[],seen=new Set();pasted=[];
+ $('#raw').value.split('\n').forEach((line,i)=>{if(!line.trim())return;
+  if(/^\s*CUSTOMER\s+NAME\b/i.test(line))return;         // header row copied along with the data
+  const r=readRow(line);if(r.err){warns.push(`Row ${i+1} skipped: ${r.err}.`);return}
+  const name=r.name.replace(/\s+/g,' ').trim(),contract=r.contract,months=r.months,dueDate=r.dueDate;
+  if(!name||!/^\d+$/.test(contract)){warns.push(`Row ${i+1} skipped: name or contract number not found (is the column order the same as the Excel sheet?).`);return}
+  if(seen.has(contract)){warns.push(`Row ${i+1} skipped: duplicate contract number (${contract}).`);return}
+  if(!isMoney(r.remaining)){warns.push(`Row ${i+1} skipped (${contract}): REMAINING BALANCE "${r.remaining}" does not look like a number.`);return}
+  const bal=money(r.remaining);
+  if(bal<=0){warns.push(`Row ${i+1} skipped (${contract}): no remaining balance.`);return}
+  seen.add(contract);
+  if(!isDate(dueDate))warns.push(`Row ${i+1} (${contract}): due date "${dueDate}" is not in M/D/YYYY format, so the billing month may be wrong.`);
+  pasted.push({name,contract,months,dueDate,amount:fmt(bal)})});
+ pasteWarns=warns;sync();
+}
+/* The message is built from the accounts ticked in the Unpaid list, plus any pasted rows (a pasted row is ignored if its contract is already ticked). */
+const byName=(a,b)=>a.name.localeCompare(b.name,'en',{sensitivity:'base',numeric:true})||String(a.contract).localeCompare(String(b.contract),'en',{numeric:true});
+function sync(){
+ const sel=[...picked.values()].sort(byName),have=new Set(sel.map(a=>a.contract)),warns=pasteWarns.slice();
+ const extra=pasted.filter(p=>{if(have.has(p.contract)){warns.push(`Pasted contract ${p.contract} is already ticked in the Unpaid list, so it is used once.`);return false}return true});
+ accts=sel.concat(extra);
+ $('#pb').innerHTML=accts.length?accts.map(a=>`<tr><td style="font-family:ui-monospace,Menlo,monospace">${esc(a.contract)}</td><td class="nm" title="${esc(a.name)}"><b>${esc(a.name)}</b></td><td>${esc(a.months)}</td><td class="dt">${esc(a.dueDate)}</td><td class="n">₱${esc(a.amount)}</td><td>${a.id?`<button type="button" class="lk" data-rm="${esc(a.id)}" style="padding:0">Remove</button>`:''}</td></tr>`).join(''):'<tr><td colspan="6" class="sub" style="text-align:center;padding:24px">'+($('#raw').value.trim()?'No valid records found.':'Tick accounts in the Unpaid list to see them here')+'</td></tr>';
+ $('#rc').textContent=accts.length+(accts.length===1?' account':' accounts');
+ $('#usel').textContent=picked.size?picked.size+' selected':'';
+ autoNum();
+ $('#warnl').innerHTML=warns.map(w=>`<li>${esc(w)}</li>`).join('');$('#warn').hidden=!warns.length;
+ if(accts.length)regen();else{$('#out').value='';setMode('');}
+ updSms();
+}
+/* ---------- Unpaid list ---------- */
+const mdy=v=>{const m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(v||'');return m?(+m[2])+'/'+(+m[3])+'/'+m[1]:''};
+const LIST_MAX=300;
+function matches(a,toks){return toks.every(t=>t.length>=3?a._n.includes(t)||a.contract.includes(t):a._w.some(w=>w.startsWith(t))||a.contract.includes(t))}
+let shown=[];
+function renderUnpaid(){
+ const toks=$('#uq').value.toLowerCase().split(/\s+/).filter(Boolean),all=toks.length?unpaid.filter(a=>matches(a,toks)):unpaid;
+ shown=all.slice(0,LIST_MAX);
+ $('#ulb').innerHTML=shown.length?shown.map(a=>`<tr data-id="${esc(a.id)}"${picked.has(a.id)?' class="sel"':''}><td class="ck"><input type="checkbox" ${picked.has(a.id)?'checked':''} aria-label="Add ${esc(a.name)}"></td><td class="nm" title="${esc(a.name)}"><b>${esc(a.name)}</b></td><td style="font-family:ui-monospace,Menlo,monospace">${esc(a.contract)}</td><td>${esc(a.months)}</td><td class="dt">${esc(a.dueDate)}</td><td class="n">₱${esc(a.amount)}</td></tr>`).join(''):'<tr><td colspan="6" class="sub" style="text-align:center;padding:24px">'+(unpaid.length?'No unpaid account matches your search.':'No unpaid accounts.')+'</td></tr>';
+ $('#ulc').textContent=toks.length?all.length+' of '+unpaid.length+' unpaid':unpaid.length+' unpaid';
+ $('#ulm').textContent=all.length>LIST_MAX?`Showing the first ${LIST_MAX} of ${all.length}. Type more of the name to narrow the list.`:'';
+}
+function pick(id,on){const a=unpaid.find(x=>x.id===id);if(!a)return;if(on)picked.set(id,a);else picked.delete(id)}
+$('#ulb').addEventListener('click',e=>{const tr=e.target.closest('tr[data-id]');if(!tr)return;const id=tr.dataset.id,cb=tr.querySelector('input'),was=picked.has(id);
+ if(e.target!==cb){/* row click: browser did not toggle the box */}
+ pick(id,!was);cb.checked=picked.has(id);tr.classList.toggle('sel',picked.has(id));sync()});
+$('#uq').addEventListener('input',debounce(renderUnpaid,150));
+$('#uall').onclick=()=>{if(!shown.length)return;if(shown.length>50&&!confirm(`Add all ${shown.length} accounts shown? The message will be very long.`))return;shown.forEach(a=>picked.set(a.id,a));renderUnpaid();sync()};
+$('#unone').onclick=()=>{picked.clear();renderUnpaid();sync()};
+$('#pb').addEventListener('click',e=>{const b=e.target.closest('button[data-rm]');if(!b)return;picked.delete(b.dataset.rm);renderUnpaid();sync()});
+async function loadUnpaid(){
+ $('#ulc').textContent='Loading…';
+ const j=await Auth.call('gen_accounts');if(j.e){$('#ulc').textContent='Not loaded';$('#ulb').innerHTML=`<tr><td colspan="6" class="sub" style="text-align:center;padding:24px">${esc(j.e)}</td></tr>`;return}
+ unpaid=j.r.map(x=>{const name=String(x.name||'').replace(/\s+/g,' ').trim();return{id:x.id,name,contract:String(x.cn??''),months:x.m==null?'':String(x.m),dueDate:mdy(x.d),amount:fmt(x.b),phone:x.p||'',_n:name.toLowerCase(),_w:name.toLowerCase().split(/[^a-z0-9]+/).filter(Boolean)}}).sort(byName);
+ const ids=new Set(unpaid.map(a=>a.id));for(const [id] of picked){if(ids.has(id))picked.set(id,unpaid.find(a=>a.id===id));else picked.delete(id)}
+ renderUnpaid();sync()}
+$('#ulr').onclick=loadUnpaid;
+$('#proc').onclick=processData;
+$('#raw').addEventListener('input',debounce(processData,350));
+$('#clr').onclick=()=>{$('#raw').value='';processData()};
+
+/* ---------- building the text ---------- */
+function dates(){const d={billingMonth:'[BILLING_MONTH]',billingMonthMinus1:'[BILLING_MONTH-1]',billingMonthPlus1:'[BILLING_MONTH+1]',billingMonthYear:'[BILLING_MONTH_YEAR]',billingMonthYearMinus1:'[BILLING_MONTH_YEAR-1]',billingMonthYearPlus1:'[BILLING_MONTH_YEAR+1]'};
+ const p=(accts[0]&&accts[0].dueDate||'').split('/');if(p.length<3)return d;const base=new Date(+p[2],+p[0]-1,+p[1]);if(isNaN(base))return d;
+ const mn=x=>x.toLocaleString('en-US',{month:'long'}),sh=n=>{const x=new Date(base.getFullYear(),base.getMonth()+n,1);return[mn(x),mn(x)+' '+x.getFullYear()]};
+ [d.billingMonth,d.billingMonthYear]=sh(0);[d.billingMonthMinus1,d.billingMonthYearMinus1]=sh(-1);[d.billingMonthPlus1,d.billingMonthYearPlus1]=sh(1);return d}
+function fill(t,a,d){let r=String(t??'');
+ r=r.split('[BILLING_MONTH_YEAR-1]').join(d.billingMonthYearMinus1).split('[BILLING_MONTH_YEAR+1]').join(d.billingMonthYearPlus1).split('[BILLING_MONTH_YEAR]').join(d.billingMonthYear)
+  .split('[BILLING_MONTH-1]').join(d.billingMonthMinus1).split('[BILLING_MONTH+1]').join(d.billingMonthPlus1).split('[BILLING_MONTH]').join(d.billingMonth);
+ if(a)r=r.replace(/\[NAME\]/g,()=>a.name).replace(/\[CONTRACT\]/g,()=>a.contract).replace(/\[AMOUNT\]/g,()=>a.amount).replace(/\[MONTHS\]/g,()=>a.months).replace(/\[DUEDATE\]/g,()=>a.dueDate);
+ return r}
+/* Spacing is applied here, not left to the templates: each block is trimmed, then blocks are joined with exactly one blank line;
+   accounts sit on consecutive lines (single-line loop) or are separated by one blank line (multi-line loop). */
+const tidy=t=>String(t??'').replace(/\r\n?/g,'\n').split('\n').map(l=>l.replace(/[ \t]+$/,'')).join('\n').replace(/\n{3,}/g,'\n\n').trim();
+const build=kind=>{const d=dates(),h=kind==='email'?'email':'sms';
+ const head=tidy(fill(cfg[h+'_head'],null,d)),foot=tidy(fill(cfg[h+'_foot'],null,d)),items=accts.map(a=>tidy(fill(cfg[h+'_loop'],a,d))).filter(Boolean);
+ const body=items.join(items.some(x=>x.includes('\n'))?'\n\n':'\n');
+ return [head,body,foot].filter(Boolean).join('\n\n')};
+function setMode(m){mode=m;const e=$('#mode');e.textContent=m==='email'?'– Email format':m==='sms'?'– SMS format':'(none)';e.className='mode '+(m==='email'?'e':m==='sms'?'s':'');counter()}
+function counter(){const t=$('#out').value;if(mode!=='sms'||!t){$('#cnt').textContent=t?t.length+' characters':'';return}
+ const gsm=!/[^\x20-\x7E\n]/.test(t),per=gsm?160:70,seg=t.length<=per?1:Math.ceil(t.length/(gsm?153:67));$('#cnt').textContent=t.length+' characters · '+seg+' SMS'+(gsm?'':' (special characters: 70 per SMS)')}
+/* show the text without counting it (typing / pasting / saving templates) */
+function regen(){const m=mode||'email';$('#out').value=build(m);setMode(m);updSms()}
+
+/* ---------- counting ---------- */
+const sigOf=kind=>kind+'\u0001'+JSON.stringify(accts)+'\u0001'+$('#out').value;
+async function ensure(kind){
+ if(!accts.length){toast('Paste and process some data first.');return false}
+ $('#out').value=build(kind);setMode(kind);
+ const sig=sigOf(kind);if(counted[kind]===sig){toast('Already counted for this data.');return true}
+ if(busy)return true;busy=true;
+ const j=await Auth.call('gen_log',{kind,items:accts.map(a=>({cn:a.contract,name:a.name}))});busy=false;
+ if(!j.ok){toast('Generated, but not counted: '+(j.e||'server error'),4200);return true}
+ counted[kind]=sig;
+ const miss=j.missing||[];
+ toast((kind==='email'?'Email':'SMS')+' counted for '+j.matched+' account'+(j.matched===1?'':'s')+(miss.length?'. Not found in Accounts: '+miss.slice(0,6).join(', ')+(miss.length>6?' +'+(miss.length-6)+' more':''):''),miss.length?5200:2600);
+ return true}
+$('#be').onclick=()=>ensure('email');
+$('#bs').onclick=()=>ensure('sms');
+$('#bo').onclick=async()=>{if(!await ensure('email')||!accts.length)return;
+ const body=encodeURIComponent($('#out').value.replace(/\n/g,'\r\n')),url='mailto:?cc='+encodeURIComponent(cfg.cc||'')+'&subject='+encodeURIComponent(cfg.subject||'')+'&body='+body;
+ if(url.length>7000)toast('That is a long message; if Outlook does not open, use Copy and paste it into a new email.',5200);
+ location.href=url};
+$('#bm').onclick=async()=>{if(!await ensure('sms')||!accts.length)return;await copyText($('#out').value);
+ const l=/^https:\/\//i.test(cfg.msgr||'')?cfg.msgr:'';
+ if(!l)return toast('SMS copied. No Messenger link is set (see Templates).',4200);
+ toast('SMS copied! Paste it (Ctrl+V) in Messenger.',3200);setTimeout(()=>window.open(l,'_blank','noopener'),900)};
+$('#bc').onclick=async()=>{const t=$('#out').value;if(!t)return;await copyText(t);toast('Copied to clipboard')};
+
+/* ---------- start ---------- */
+Auth.ready.then(async ok=>{if(!ok)return;
+ const j=await Auth.call('gen_get');if(j.e){$('#st').textContent=j.e;$('#hdrmsg').textContent=j.e;return}
+ cfg=j.cfg;DEF=j.def;canEdit=!!j.canEdit;$('#st').textContent='Ready';fillSettings();fillSms(j.sms||SMS.DEF);loadUnpaid();
+ const h=location.hash.slice(1);if(h==='settings')tab('s')});
+</script>
+</body>
+</html>

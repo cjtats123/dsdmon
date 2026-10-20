@@ -1,0 +1,11 @@
+# Customer data must never be committed
+*.xlsx
+*.xlsm
+*.xls
+*.csv
+*.zip
+# local files
+node_modules/
+.netlify/
+.env
+.DS_Store
