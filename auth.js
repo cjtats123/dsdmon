@@ -1,6 +1,6 @@
 /* CEPALCO login. Users, permissions and data live on the server (/api, Netlify Blobs). */
 const Auth=(()=>{
-const S='cep_session',FEATS={collections:'Collections',accounts:'Accounts',contacts:'Contact Directory',gen:'EMAIL/SMS generator',report:'Generate report',dnjo:'DN / Job Order',sms:'Send text',dmap:'Delinquent Accounts Mapping'},NA={contacts:['create','delete'],gen:['create','delete'],dnjo:['create','delete'],sms:['create','update','delete'],dmap:['create','delete']},ACTS=['view','create','update','delete'];
+const S='cep_session',FEATS={collections:'Collections',accounts:'Accounts',contacts:'Contact Directory',gen:'EMAIL/SMS generator',report:'Generate report',dnjo:'DN / Job Order',sms:'Send text',dmap:'Accounts Mapping'},NA={contacts:['create','delete'],gen:['create','delete'],dnjo:['create','delete'],sms:['create','update','delete'],dmap:['create','delete']},ACTS=['view','create','update','delete'];
 const cs=document.currentScript,g=(cs&&cs.dataset)||{},guarded=!!(g.guard||g.admin!==undefined);
 if(guarded)document.documentElement.style.visibility='hidden';
 const ses=()=>{try{return JSON.parse(sessionStorage.getItem(S))}catch(e){return null}};

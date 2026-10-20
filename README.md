@@ -8,7 +8,7 @@ A static website (GitHub + Netlify) that reads your `ACCOUNTS_MASTERLIST` Excel 
 - **Contact Directory** (`index.html`): customer name, contract number, phone number, email address and contact person, built from the Accounts list. Search, filter by missing email or contact person, and edit phone, email and contact person in place (with Edit permission).
 - **Generate report** (`report.html`): your Collection Monitoring Update Tool. It now reads the live account data, so edits made in the Accounts grid show up in the report. Pick the month, year, and week scope, then print, save as PDF, copy as text, or export to Word.
 - **EMAIL/SMS Generator** (`smsgen.html`): paste raw account lines, then generate an **email** or **SMS** from your templates (header, per-account loop, footer). Open the email in Outlook, or copy the SMS and jump to Messenger. The **Templates** tab holds the wording, CC address, subject and Messenger link, shared by everyone. Each time an email or SMS is generated, the **Generated** column on the Accounts page goes up by 1 for every pasted contract number it finds. See `SMS-GENERATOR.md`.
-- **Delinquent Accounts Mapping** (`dmap.html`): map of accounts with unpaid balances, colour-coded by months unpaid, with pin placement, KML/KMZ/CSV import and KML export. See `DELINQUENT-MAP.md`.
+- **Accounts Mapping** (`dmap.html`): map of accounts in four tabs (Delinquent, Partially paid, Fully paid, Unbilled), with pin placement, KML/KMZ/CSV import and KML export. See `DELINQUENT-MAP.md`.
 - **Admin** (`admin.html`): users, passwords and permissions.
 
 ## Permissions (Admin page)

@@ -106,16 +106,6 @@ async function audit(s, me, act, rec, d) {
     await s.setJSON("audit", l.slice(-AUDIT_MAX));
   } catch { /* the change log must never block an edit */ }
 }
-// ---- sign-in log (who signed in / out / failed, and when) ----
-const SIGN_MAX = 1000;
-const clientIp = req => String(req.headers.get("x-nf-client-connection-ip") || req.headers.get("x-forwarded-for") || "?").split(",")[0].trim().slice(0, 45);
-async function signlog(s, req, u, ev) {
-  try {
-    const l = (await s.get("signins", { type: "json" })) || [];
-    l.push({ t: Date.now(), u: String(u || "").slice(0, 40), e: ev, ip: clientIp(req) });
-    await s.setJSON("signins", l.slice(-SIGN_MAX));
-  } catch { /* the sign-in log must never block a login */ }
-}
 // ---- backups of the whole account list (kept before Load Excel and before a restore) ----
 const BK_KEEP = 8;
 async function backup(s, label) {
@@ -131,7 +121,7 @@ const SMS_VARS = ["name", "contract", "amount", "months_unpaid", "due_date"];
 const loadSms = async s => (await s.get("sms", { type: "json" })) || { cfg: {}, texted: {} };
 const bad = e => J({ e: e.message || "Invalid data" }, 400);
 
-// ---- Delinquent Accounts Mapping: pin locations are stored by contract no. + customer name (not by row id), so they survive Load Excel ----
+// ---- Accounts Mapping: pin locations are stored by contract no. + customer name (not by row id), so they survive Load Excel ----
 const geoKey = x => keyCn(x["CONTRACT NO."]) + "|" + keyNm(x["CUSTOMER NAME"]);
 const loadGeo = async s => { const g = (await s.get("geo", { type: "json" })) || {}; g.p = g.p || {}; return g; };
 const okLL = (la, ln) => Number.isFinite(la) && Number.isFinite(ln) && la >= -90 && la <= 90 && ln >= -180 && ln <= 180 && !(la === 0 && ln === 0);
@@ -154,21 +144,18 @@ export default async (req) => {
       fails[fk] = n >= 5 ? { n: 0, until: now + 15 * 6e4, last: now } : { n, until: 0, last: now };
       if (Object.keys(fails).length > 500) for (const k of Object.keys(fails).slice(0, 100)) delete fails[k];
       await s.setJSON("fails", fails);
-      await signlog(s, req, u, n >= 5 ? "locked" : "failed");
       return J({ e: "Wrong username or password." }, 401);
     }
     if (f) { delete fails[fk]; await s.setJSON("fails", fails); }
     // A weak or default password (like admin/admin) works only to reach the "choose a new password" step.
-    await signlog(s, req, u, "login");
     return J(session({ u, role: x.role, must: !!pwBad(b.p, u) }, db, k));
   }
-  if (a === "guest") { await signlog(s, req, "guest", "login"); return J(session({ u: "guest", role: "guest" }, db, k)); }
+  if (a === "guest") return J(session({ u: "guest", role: "guest" }, db, k));
 
   const me = who(ver(b.t, k), db);
   if (!me) return J({ e: "Please sign in again." }, 401);
   const save = async () => { await s.setJSON("db", db); _db = db; _dbAt = Date.now(); };
   if (a === "me") return J(session(me, db, k));
-  if (a === "logout") { await signlog(s, req, me.u, "logout"); return J({ ok: 1 }); }
   if (a === "chpw") {
     const x = me.role === "guest" ? null : db.users.find(y => y.u === me.u); if (!x) return J({ e: "Guests have no password" }, 400);
     const o = String(b.o || ""), np = String(b.p || "");
@@ -258,15 +245,18 @@ export default async (req) => {
     let rec; try { rec = norm({ ...d.r[i], [col]: v || null }, d.r[i]._id); } catch (e) { return bad(e); }
     const ch = diff(d.r[i], rec); d.r[i] = rec; await saveAcc(s, d); if (ch.length) await audit(s, me, "DN/JO", rec, ch); return J({ ok: 1, v: rec[col] });
   }
-  // Delinquent Accounts Mapping: accounts with a remaining balance, plus where each one is pinned. Phone numbers only for people who may see the Contact Directory.
+  // Accounts Mapping: all accounts (delinquent / partially paid / fully paid / unbilled), plus where each one is pinned. Phone numbers only for people who may see the Contact Directory.
   if (a === "dmap_get") {
     if (!can(me, db, "dmap")) return J({ e: "Not allowed" }, 403);
     const d = await readAcc(s), g = await loadGeo(s), withPhone = can(me, db, "contacts");
-    const r = d.r.filter(x => x["CUSTOMER NAME"] && Number(x["REMAINING BALANCE"]) > 0).map(x => {
+    // s = status: 0 delinquent (balance left, nothing paid), 1 partially paid (paid something, balance left), 2 fully paid, 3 unbilled (no balance, nothing paid). Every account is sent; the page splits them into tabs.
+    const nn = v => { const n = Number(v); return Number.isFinite(n) ? n : 0; };
+    const r = d.r.filter(x => x["CUSTOMER NAME"]).map(x => {
+      const R = nn(x["REMAINING BALANCE"]), P = nn(x["PAID AMOUNT"]), s = R > 0 ? (P > 0 ? 1 : 0) : (P > 0 ? 2 : 3);
       const p = g.p[geoKey(x)];
-      return { id: x._id, name: x["CUSTOMER NAME"], cn: x["CONTRACT NO."], area: x["AREA"] ?? "", sub: x["SUB-AREA"] || "", type: x["CUSTOMER TYPE"] || "", m: x["MONTHS UNPAID"], d: x["DUE DATE"] || "", b: Number(x["REMAINING BALANCE"]), dn: x["DN/ODAA"] || "", jo: x["JOB-ORDER"] || "", ...(p ? { la: p.la, ln: p.ln } : {}), ...(withPhone ? { p: x["PHONE NO."] || "" } : {}) };
+      return { s, pa: P, t: nn(x["TOTAL BALANCE AMOUNT"]), pd: x["PAYMENT DATE"] || "", id: x._id, name: x["CUSTOMER NAME"], cn: x["CONTRACT NO."], area: x["AREA"] ?? "", sub: x["SUB-AREA"] || "", type: x["CUSTOMER TYPE"] || "", m: x["MONTHS UNPAID"], d: x["DUE DATE"] || "", b: Math.max(0, R), dn: x["DN/ODAA"] || "", jo: x["JOB-ORDER"] || "", ...(p ? { la: p.la, ln: p.ln } : {}), ...(withPhone ? { p: x["PHONE NO."] || "" } : {}) };
     });
-    return J({ r, at: d.at || 0, canEdit: can(me, db, "dmap", "update") });
+    return J({ v: 2, r, at: d.at || 0, canEdit: can(me, db, "dmap", "update") });
   }
   // One account ({id, la, ln}; la empty = remove the pin) or a batch from an imported file ({items: [{cn, name, la, ln}]}, matched to accounts by contract no. / name).
   if (a === "dmap_set") {
@@ -337,7 +327,6 @@ export default async (req) => {
     return J({ ok: 1, count: r.length, backedUp: !!bk });
   }
   if (a === "audit_get") { const l = (await s.get("audit", { type: "json" })) || []; return J({ l: l.slice(-500).reverse() }); }
-  if (a === "signin_get") { const l = (await s.get("signins", { type: "json" })) || []; return J({ l: l.slice(-500).reverse() }); }
   if (a === "backups") return J({ l: ((await s.get("backups_idx", { type: "json" })) || []).slice().reverse() });
   if (a === "backup_now") { const key = await backup(s, "Manual backup (" + me.u + ")"); return key ? J({ ok: 1 }) : J({ e: "Nothing to back up yet" }, 400); }
   if (a === "backup_restore") {
