@@ -7,9 +7,9 @@ Replaces the old per-row **Text** button (which opened the phone's SMS app). Not
 **Unpaid list (no pasting needed):** the left side lists every account with a remaining balance, sorted by name. Type in the search box (name or contract no., e.g. `A Brown`) to narrow it, tick the accounts you want (or **Add all shown**), and they go straight into the email / SMS. Ticks stay when you change the search, so you can add accounts from several searches into one message (many accounts to one number or email). **Remove** in the *Accounts in the message* table or **Clear selection** takes them out. The list shows at most 300 rows at a time; **Refresh** reloads it from Accounts.
 Pasting rows from Excel is still available under *Or paste rows from Excel*; pasted rows are added after the ticked ones.
 
-1. Paste the rows copied from the Excel sheet (header row optional), 12 columns: `CUSTOMER NAME, AREA, RATE SCHED, CONTRACT NO., MONTHS UNPAID, DUE DATE, PAYMENT DATE, ARREARS, LATEST BILL AMOUNT, TOTAL BALANCE AMOUNT, PAID AMOUNT, REMAINING BALANCE`
+1. Paste the rows copied from the Excel sheet (header row optional), 10 columns: `CUSTOMER NAME, AREA, RATE SCHED, CONTRACT NO., MONTHS UNPAID, DUE DATE, PAYMENT DATE, ARREARS, LATEST BILL AMOUNT, TOTAL BALANCE AMOUNT`
    e.g. `ISON TOWER LTD.INC [tab] 2 [tab] 48 [tab] 5560775 [tab] 1 [tab] 10/20/2026 [tab] [tab] - [tab] 33,688.17 [tab] 33,688.17 [tab] - [tab] 33,688.17`
-   The amount used in the message is **REMAINING BALANCE** (shown as 33,688.17). Rows with no remaining balance are skipped with a warning.
+   The amount used in the message is **TOTAL BALANCE AMOUNT** (shown as 33,688.17). Rows with no remaining balance are skipped with a warning.
 2. The preview table shows what was read. Duplicate contract numbers and bad lines are skipped with a warning.
 3. **Open SMS app** opens Messages on Android / iPhone with the number and the generated SMS filled in (the message is also copied to the clipboard). The number is filled in automatically when the ticked accounts share one mobile number on file (needs Contact Directory View); otherwise type it, or leave it empty and choose the contact in the SMS app. Use it on the phone you will send from.
 3b. **Prep Email** / **Prep SMS** build the message. **Open in Outlook** (uses the CC and subject from Templates), **Copy & open Messenger**, or **Copy**.

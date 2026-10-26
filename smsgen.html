@@ -84,8 +84,8 @@ details.paste>summary{cursor:pointer;font-weight:700;font-size:14px}details.past
         <summary>Or paste rows from Excel</summary>
         <div class="stack">
         <div class="row"><span class="grow"></span><button type="button" class="lk" id="clr" style="padding:0">Clear pasted rows</button></div>
-        <p class="sub" style="margin:0">Copy the rows straight from the Excel sheet (header row optional). Columns: <b>CUSTOMER NAME · AREA · RATE SCHED · CONTRACT NO. · MONTHS UNPAID · DUE DATE · PAYMENT DATE · ARREARS · LATEST BILL AMOUNT · TOTAL BALANCE AMOUNT · PAID AMOUNT · REMAINING BALANCE</b>. The message uses the <b>REMAINING BALANCE</b> as the amount; rows with no balance are skipped.</p>
-        <textarea id="raw" class="ta mono" rows="9" spellcheck="false" placeholder="CUSTOMER NAME&#9;AREA&#9;RATE SCHED&#9;CONTRACT NO.&#9;MONTHS UNPAID&#9;DUE DATE&#9;PAYMENT DATE&#9;ARREARS&#9;LATEST BILL AMOUNT&#9;TOTAL BALANCE AMOUNT&#9;PAID AMOUNT&#9;REMAINING BALANCE&#10;ISON TOWER LTD.INC&#9;2&#9;48&#9;5560775&#9;1&#9;10/20/2026&#9;&#9; -   &#9; 33,688.17 &#9; 33,688.17 &#9; -   &#9; 33,688.17 "></textarea>
+        <p class="sub" style="margin:0">Copy the rows straight from the Excel sheet (header row optional). Columns: <b>CUSTOMER NAME · AREA · RATE SCHED · CONTRACT NO. · MONTHS UNPAID · DUE DATE · PAYMENT DATE · ARREARS · LATEST BILL AMOUNT · TOTAL BALANCE AMOUNT</b> (10 columns). The message uses the <b>TOTAL BALANCE AMOUNT</b> as the amount; rows with no balance are skipped.</p>
+        <textarea id="raw" class="ta mono" rows="9" spellcheck="false" placeholder="CUSTOMER NAME&#9;AREA&#9;RATE SCHED&#9;CONTRACT NO.&#9;MONTHS UNPAID&#9;DUE DATE&#9;PAYMENT DATE&#9;ARREARS&#9;LATEST BILL AMOUNT&#9;TOTAL BALANCE AMOUNT&#10;FRONTIER TOWER&#9;2&#9;48&#9;5557633&#9;1&#9;10/20/2026&#9;&#9; -   &#9; 37,000.18 &#9; 37,000.18 "></textarea>
         <button type="button" class="btn pri lg" id="proc">Process data</button>
         <div class="info"><b>How counting works:</b> each click on <b>Prep Email</b> or <b>Prep SMS</b> (or on Outlook / Messenger, when they have to generate first) adds 1 to the <b>Generated</b> column on <b>Accounts</b> for every pasted contract number found there. Typing or pasting only previews; it is not counted. Clicking the same thing again for unchanged data is not counted twice.</div>
         </div>
@@ -228,22 +228,22 @@ $('#bp').addEventListener('click',e=>{
  toast('SMS copied. Opening your SMS app… if the text is empty there, just paste it.',3600)});
 
 /* ---------- parsing ---------- */
-const HEAD_COLS=['CUSTOMER NAME','AREA','RATE SCHED','CONTRACT NO.','MONTHS UNPAID','DUE DATE','PAYMENT DATE','ARREARS','LATEST BILL AMOUNT','TOTAL BALANCE AMOUNT','PAID AMOUNT','REMAINING BALANCE'];
+const HEAD_COLS=['CUSTOMER NAME','AREA','RATE SCHED','CONTRACT NO.','MONTHS UNPAID','DUE DATE','PAYMENT DATE','ARREARS','LATEST BILL AMOUNT','TOTAL BALANCE AMOUNT'];
 const isDate=v=>/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(v||'');
 const isMoney=v=>/^(-|[\d,]+(\.\d+)?)$/.test(v||'');
 const money=v=>{const n=parseFloat(String(v??'').replace(/[,\s]/g,''));return isNaN(n)?0:n};
 const fmt=n=>n.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
-/* one Excel row -> {name,contract,months,dueDate,amount} using the 12-column layout; amount = REMAINING BALANCE */
+/* one Excel row -> {name,contract,months,dueDate,amount} using the 10-column layout; amount = TOTAL BALANCE AMOUNT */
 function readRow(line){
  const t=line.replace(/\s+$/,'');
  if(t.includes('\t')){                                   // pasted straight from Excel (tab-separated; PAYMENT DATE may be empty)
   const c=t.split('\t').map(x=>x.trim());
-  if(c.length<12)return{err:`expected 12 columns (${HEAD_COLS[0]} … ${HEAD_COLS[11]}) but found ${c.length}`};
-  return{name:c[0],contract:c[3],months:c[4],dueDate:c[5],remaining:c[11]};
+  if(c.length<10)return{err:`expected 10 columns (${HEAD_COLS[0]} … ${HEAD_COLS[9]}) but found ${c.length}`};
+  return{name:c[0],contract:c[3],months:c[4],dueDate:c[5],remaining:c[9]};
  }
  const k=t.trim().split(/\s+/);                          // spaces only (e.g. pasted from chat): work backwards from the money columns
- if(k.length<11)return{err:'invalid format or missing columns'};
- const m=k.splice(k.length-5,5),remaining=m[4];
+ if(k.length<9)return{err:'invalid format or missing columns'};
+ const m=k.splice(k.length-3,3),remaining=m[2];
  let due=k.pop();if(isDate(due)&&isDate(k[k.length-1]))due=k.pop();   // drop PAYMENT DATE when both dates are present
  const months=k.pop(),contract=k.pop();k.pop();k.pop();             // RATE SCHED, AREA
  return{name:k.join(' '),contract,months,dueDate:due,remaining};
@@ -256,7 +256,7 @@ function processData(){
   const name=r.name.replace(/\s+/g,' ').trim(),contract=r.contract,months=r.months,dueDate=r.dueDate;
   if(!name||!/^\d+$/.test(contract)){warns.push(`Row ${i+1} skipped: name or contract number not found (is the column order the same as the Excel sheet?).`);return}
   if(seen.has(contract)){warns.push(`Row ${i+1} skipped: duplicate contract number (${contract}).`);return}
-  if(!isMoney(r.remaining)){warns.push(`Row ${i+1} skipped (${contract}): REMAINING BALANCE "${r.remaining}" does not look like a number.`);return}
+  if(!isMoney(r.remaining)){warns.push(`Row ${i+1} skipped (${contract}): TOTAL BALANCE AMOUNT "${r.remaining}" does not look like a number.`);return}
   const bal=money(r.remaining);
   if(bal<=0){warns.push(`Row ${i+1} skipped (${contract}): no remaining balance.`);return}
   seen.add(contract);
